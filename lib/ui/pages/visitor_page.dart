@@ -55,7 +55,7 @@ class VisitorPage extends StatelessWidget {
                     icon: const SvgIcon(
                       AppSvgIcons.download,
                       size: 24,
-                      color: AppColors.title,
+                      color: AppColors.primary,
                     ),
                     tooltip: 'Download',
                   ),

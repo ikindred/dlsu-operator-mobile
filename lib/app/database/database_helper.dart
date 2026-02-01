@@ -98,6 +98,14 @@ class DatabaseHelper {
     return database.query(tableStuEmpList, orderBy: 'created_at DESC');
   }
 
+  Future<int> getStuEmpListCount() async {
+    final database = await db;
+    final result = await database.rawQuery(
+      'SELECT COUNT(*) as c FROM $tableStuEmpList',
+    );
+    return (result.first['c'] as int?) ?? 0;
+  }
+
   Future<Map<String, dynamic>?> getStuEmpListById(String id) async {
     final database = await db;
     final list = await database.query(
@@ -139,6 +147,14 @@ class DatabaseHelper {
     return database.query(tableStuEmpLogs, orderBy: 'created_at DESC');
   }
 
+  Future<int> getStuEmpLogsCount() async {
+    final database = await db;
+    final result = await database.rawQuery(
+      'SELECT COUNT(*) as c FROM $tableStuEmpLogs',
+    );
+    return (result.first['c'] as int?) ?? 0;
+  }
+
   Future<List<Map<String, dynamic>>> getStuEmpLogsById(String id) async {
     final database = await db;
     return database.query(
@@ -160,6 +176,14 @@ class DatabaseHelper {
   Future<List<Map<String, dynamic>>> getAllVisitorList() async {
     final database = await db;
     return database.query(tableVisitorList, orderBy: 'created_at DESC');
+  }
+
+  Future<int> getVisitorListCount() async {
+    final database = await db;
+    final result = await database.rawQuery(
+      'SELECT COUNT(*) as c FROM $tableVisitorList',
+    );
+    return (result.first['c'] as int?) ?? 0;
   }
 
   Future<Map<String, dynamic>?> getVisitorListByCardNo(String cardNo) async {
@@ -201,6 +225,14 @@ class DatabaseHelper {
   Future<List<Map<String, dynamic>>> getAllVisitorLogs() async {
     final database = await db;
     return database.query(tableVisitorLogs, orderBy: 'created_at DESC');
+  }
+
+  Future<int> getVisitorLogsCount() async {
+    final database = await db;
+    final result = await database.rawQuery(
+      'SELECT COUNT(*) as c FROM $tableVisitorLogs',
+    );
+    return (result.first['c'] as int?) ?? 0;
   }
 
   Future<List<Map<String, dynamic>>> getVisitorLogsByCardNo(String cardNo) async {

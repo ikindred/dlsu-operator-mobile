@@ -1,6 +1,7 @@
 import 'package:get/get.dart';
 import '../services/storage_service.dart';
 import '../routes/app_routes.dart';
+import '../database/database_helper.dart';
 
 class HomeController extends GetxController {
   final StorageService _storageService = StorageService();
@@ -8,10 +9,11 @@ class HomeController extends GetxController {
   final RxString userEmail = ''.obs;
   final RxString displayName = 'Kindred'.obs;
 
-  // Dashboard stats (placeholder – wire to API later)
-  final RxInt studentsCount = 15482.obs;
-  final RxInt studentNotUploadedCount = 500.obs;
-  final RxInt visitorsCount = 20000.obs;
+  // Dashboard counts from database
+  final RxInt studentsCount = 0.obs;
+  final RxInt studentNotUploadedCount = 0.obs;
+  final RxInt visitorsCount = 0.obs;
+  final RxInt visitorLogsCount = 0.obs;
 
   final RxString lastSync = 'Jan 2 2024 - 09:25:48 AM'.obs;
   final RxString lastUpload = 'Jan 2 2024 - 09:25:48 AM'.obs;
@@ -21,6 +23,21 @@ class HomeController extends GetxController {
   void onInit() {
     super.onInit();
     _loadUserInfo();
+  }
+
+  @override
+  void onReady() {
+    super.onReady();
+    loadDashboardCounts();
+  }
+
+  Future<void> loadDashboardCounts() async {
+    studentsCount.value = await DatabaseHelper.instance.getStuEmpListCount();
+    studentNotUploadedCount.value =
+        await DatabaseHelper.instance.getStuEmpLogsCount();
+    visitorsCount.value = await DatabaseHelper.instance.getVisitorListCount();
+    visitorLogsCount.value =
+        await DatabaseHelper.instance.getVisitorLogsCount();
   }
 
   void _loadUserInfo() {
@@ -38,12 +55,24 @@ class HomeController extends GetxController {
     }
   }
 
-  void refreshStudents() {
+  Future<void> refreshStudents() async {
     // TODO: call API to sync students
+    await loadDashboardCounts();
   }
 
-  void uploadStudents() {
+  Future<void> uploadStudents() async {
     // TODO: call API to upload students
+    await loadDashboardCounts();
+  }
+
+  Future<void> uploadVisitors() async {
+    // TODO: call API to upload visitors
+    await loadDashboardCounts();
+  }
+
+  Future<void> downloadVisitorLogs() async {
+    // TODO: call API to download/export visitor logs
+    await loadDashboardCounts();
   }
 
   Future<void> logout() async {

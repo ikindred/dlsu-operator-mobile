@@ -113,6 +113,19 @@ class ProfilePage extends StatelessWidget {
                       'assets/png/verifyi.png',
                       height: 48,
                       fit: BoxFit.contain,
+                      errorBuilder: (_, __, ___) => SizedBox(
+                        height: 48,
+                        child: Center(
+                          child: Text(
+                            'VERIFYI',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: AppColors.primary,
+                            ),
+                          ),
+                        ),
+                      ),
                     ),
                   ),
                   const SizedBox(height: 12),

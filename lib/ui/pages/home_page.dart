@@ -32,12 +32,12 @@ class HomePage extends StatelessWidget {
               ),
               const SizedBox(height: 24),
 
-              // Students card
+              // Student List card
               Obx(
                 () => _DashboardCard(
                   leftColor: AppColors.primary,
                   iconPath: AppSvgIcons.graduationCap,
-                  label: 'Students',
+                  label: 'Student List',
                   count: controller.studentsCount.value,
                   trailingIconPath: AppSvgIcons.refresh,
                   onTrailingTap: controller.refreshStudents,
@@ -46,12 +46,12 @@ class HomePage extends StatelessWidget {
               ),
               const SizedBox(height: 20),
 
-              // Student not Uploaded card
+              // Student Logs card
               Obx(
                 () => _DashboardCard(
                   leftColor: AppColors.negative,
                   iconPath: AppSvgIcons.graduationCap,
-                  label: 'Student not Uploaded',
+                  label: 'Student Logs',
                   count: controller.studentNotUploadedCount.value,
                   trailingIconPath: AppSvgIcons.upload,
                   onTrailingTap: controller.uploadStudents,
@@ -60,20 +60,36 @@ class HomePage extends StatelessWidget {
               ),
               const SizedBox(height: 30),
 
-              //add divider
+              // Divider
               const Divider(
                 color: Color.fromARGB(87, 112, 128, 144),
                 height: 1,
               ),
               const SizedBox(height: 30),
 
-              // Visitors card
+              // Visitor List card
               Obx(
                 () => _DashboardCard(
                   leftColor: AppColors.primary,
                   iconPath: AppSvgIcons.heart,
-                  label: 'Visitors',
+                  label: 'Visitor List',
                   count: controller.visitorsCount.value,
+                  trailingIconPath: AppSvgIcons.upload,
+                  onTrailingTap: controller.uploadVisitors,
+                  subtitle: 'Last update: ${controller.lastUpdate.value}',
+                ),
+              ),
+              const SizedBox(height: 20),
+
+              // Visitor Logs card
+              Obx(
+                () => _DashboardCard(
+                  leftColor: AppColors.negative,
+                  iconPath: AppSvgIcons.heart,
+                  label: 'Visitor Logs',
+                  count: controller.visitorLogsCount.value,
+                  trailingIconPath: AppSvgIcons.download,
+                  onTrailingTap: controller.downloadVisitorLogs,
                   subtitle: 'Last update: ${controller.lastUpdate.value}',
                 ),
               ),
