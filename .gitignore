@@ -11,6 +11,9 @@
 .svn/
 .swiftpm/
 migrate_working_dir/
+android basis/
+AI_Native_Dev_System_v4_FINAL/
+.ai/
 
 # IntelliJ related
 *.iml
