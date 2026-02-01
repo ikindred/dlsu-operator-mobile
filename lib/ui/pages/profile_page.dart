@@ -13,6 +13,7 @@ class ProfilePage extends StatelessWidget {
     final controller = Get.find<HomeController>();
 
     return Scaffold(
+      backgroundColor: AppColors.pageBackground,
       body: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,

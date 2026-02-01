@@ -8,6 +8,7 @@ class VisitorPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: AppColors.pageBackground,
       body: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,

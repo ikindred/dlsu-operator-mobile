@@ -1,15 +1,26 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'app/database/database.dart';
 import 'app/services/storage_service.dart';
 import 'app/routes/app_pages.dart';
 import 'app/routes/app_routes.dart';
 import 'app/theme/app_colors.dart';
+
+/// Set to true to seed the database with sample data on app start (e.g. for dev/demo).
+const bool _kSeedDatabaseOnStart = true;
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   // Initialize GetStorage
   await StorageService.init();
+
+  // Initialize SQLite database (creates DB and tables on first access)
+  await DatabaseHelper.instance.db;
+
+  if (_kSeedDatabaseOnStart) {
+    await DatabaseSeeder.seed(clearFirst: true);
+  }
 
   runApp(const MyApp());
 }

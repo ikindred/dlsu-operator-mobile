@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 class AppColors {
   // Theme Colors
+  static const Color pageBackground = Color(0xFFF8F9FA);
   static const Color subTitle = Color(0xFF708090);
   static const Color title = Color(0xFF002413);
   static const Color primary = Color(0xFF00BC65);
