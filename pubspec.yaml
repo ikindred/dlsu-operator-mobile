@@ -55,6 +55,20 @@ dependencies:
   path: ^1.9.0
   path_provider: ^2.1.2
 
+  # File picker for CSV upload
+  file_picker: ^8.1.2
+
+  # CSV parsing
+  csv: ^6.0.0
+
+  # Save to Android Downloads folder (visible in file manager)
+  media_store_plus: ^0.1.3
+  # Share file on iOS so user can save to Files
+  share_plus: ^10.1.4
+
+  # Logger for better logging
+  logger: ^2.4.0
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

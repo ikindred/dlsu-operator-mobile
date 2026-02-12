@@ -1,3 +1,4 @@
+import 'package:logger/logger.dart';
 import 'database_helper.dart';
 
 /// Seeds the local SQLite database with sample data.
@@ -6,9 +7,20 @@ class DatabaseSeeder {
   DatabaseSeeder._();
 
   static final DatabaseHelper _db = DatabaseHelper.instance;
+  static final Logger _logger = Logger(
+    printer: PrettyPrinter(
+      methodCount: 0,
+      errorMethodCount: 8,
+      lineLength: 120,
+      colors: true,
+      printEmojis: true,
+      printTime: true,
+    ),
+  );
 
   /// Run the seeder. Set [clearFirst] to true to delete existing data before seeding (dev only).
   static Future<void> seed({bool clearFirst = false}) async {
+    _logger.i('🌱 Starting database seeding (clearFirst: $clearFirst)');
     if (clearFirst) {
       await _clearAll();
     }
@@ -16,17 +28,21 @@ class DatabaseSeeder {
     await _seedStuEmpLogs();
     await _seedVisitorList();
     await _seedVisitorLogs();
+    _logger.i('✅ Database seeding completed');
   }
 
   static Future<void> _clearAll() async {
+    _logger.d('🗑️ Clearing all existing data...');
     final database = await _db.db;
     await database.delete(DatabaseHelper.tableStuEmpLogs);
     await database.delete(DatabaseHelper.tableStuEmpList);
     await database.delete(DatabaseHelper.tableVisitorLogs);
     await database.delete(DatabaseHelper.tableVisitorList);
+    _logger.i('✅ All tables cleared');
   }
 
   static Future<void> _seedStuEmpList() async {
+    _logger.d('📚 Seeding student/employee list...');
     final now = DateTime.now();
     final base = now.subtract(const Duration(days: 30));
     // status values: "allowed", "not_allowed"
@@ -67,9 +83,11 @@ class DatabaseSeeder {
     for (final row in rows) {
       await _db.insertStuEmpList(row);
     }
+    _logger.i('✅ Seeded ${rows.length} student/employee records');
   }
 
   static Future<void> _seedStuEmpLogs() async {
+    _logger.d('📝 Seeding student/employee logs...');
     final now = DateTime.now();
     // Green: allowed, no remarks. Yellow: allowed, with remarks. Red: not_allowed.
     final rows = [
@@ -98,9 +116,11 @@ class DatabaseSeeder {
     for (final row in rows) {
       await _db.insertStuEmpLog(Map<String, dynamic>.from(row));
     }
+    _logger.i('✅ Seeded ${rows.length} student/employee log entries');
   }
 
   static Future<void> _seedVisitorList() async {
+    _logger.d('👥 Seeding visitor list...');
     final now = DateTime.now();
     final base = now.subtract(const Duration(days: 7));
     final rows = [
@@ -123,9 +143,11 @@ class DatabaseSeeder {
     for (final row in rows) {
       await _db.insertVisitorList(row);
     }
+    _logger.i('✅ Seeded ${rows.length} visitor records');
   }
 
   static Future<void> _seedVisitorLogs() async {
+    _logger.d('📋 Seeding visitor logs...');
     final now = DateTime.now();
     final rows = [
       {
@@ -147,5 +169,6 @@ class DatabaseSeeder {
     for (final row in rows) {
       await _db.insertVisitorLog(row);
     }
+    _logger.i('✅ Seeded ${rows.length} visitor log entries');
   }
 }

@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:path/path.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:logger/logger.dart';
 
 /// Local SQLite database helper.
 /// Tables: stu_emp_list, stu_emp_logs, visitor_list, visitor_logs
@@ -12,6 +13,17 @@ class DatabaseHelper {
   static Database? _db;
   static const String _dbName = 'operator_app.db';
   static const int _dbVersion = 1;
+  
+  final Logger _logger = Logger(
+    printer: PrettyPrinter(
+      methodCount: 0,
+      errorMethodCount: 8,
+      lineLength: 120,
+      colors: true,
+      printEmojis: true,
+      printTime: true,
+    ),
+  );
 
   // Table names
   static const String tableStuEmpList = 'stu_emp_list';
@@ -28,11 +40,7 @@ class DatabaseHelper {
   Future<Database> _initDb() async {
     final documentsDirectory = await getApplicationDocumentsDirectory();
     final path = join(documentsDirectory.path, _dbName);
-    return openDatabase(
-      path,
-      version: _dbVersion,
-      onCreate: _onCreate,
-    );
+    return openDatabase(path, version: _dbVersion, onCreate: _onCreate);
   }
 
   Future<void> _onCreate(Database database, int version) async {
@@ -89,8 +97,11 @@ class DatabaseHelper {
 
   Future<int> insertStuEmpList(Map<String, dynamic> row) async {
     final database = await db;
-    return database.insert(tableStuEmpList, row,
-        conflictAlgorithm: ConflictAlgorithm.replace);
+    return database.insert(
+      tableStuEmpList,
+      row,
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
   }
 
   Future<List<Map<String, dynamic>>> getAllStuEmpList() async {
@@ -128,11 +139,7 @@ class DatabaseHelper {
 
   Future<int> deleteStuEmpList(String id) async {
     final database = await db;
-    return database.delete(
-      tableStuEmpList,
-      where: 'id = ?',
-      whereArgs: [id],
-    );
+    return database.delete(tableStuEmpList, where: 'id = ?', whereArgs: [id]);
   }
 
   // ---------- stu_emp_logs ----------
@@ -169,8 +176,11 @@ class DatabaseHelper {
 
   Future<int> insertVisitorList(Map<String, dynamic> row) async {
     final database = await db;
-    return database.insert(tableVisitorList, row,
-        conflictAlgorithm: ConflictAlgorithm.replace);
+    return database.insert(
+      tableVisitorList,
+      row,
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
   }
 
   Future<List<Map<String, dynamic>>> getAllVisitorList() async {
@@ -215,6 +225,95 @@ class DatabaseHelper {
     );
   }
 
+  /// Clear all visitor list records
+  Future<void> clearVisitorList() async {
+    final database = await db;
+    await database.delete(tableVisitorList);
+  }
+
+  /// Batch insert visitor list records. Replaces all existing data with new data.
+  /// Returns the number of successfully inserted records.
+  Future<int> batchInsertVisitorList(List<Map<String, dynamic>> rows) async {
+    _logger.i('💾 Starting batch insert. Input rows: ${rows.length}');
+    
+    final database = await db;
+    final now = DateTime.now().toIso8601String();
+    int insertedCount = 0;
+
+    // Prepare valid rows first (deduplicate by card_no, reject invalid values)
+    _logger.d('🔄 Preparing valid rows for insertion...');
+    final List<Map<String, dynamic>> validRows = [];
+    final Set<String> seenCardNos = {};
+    for (final row in rows) {
+      final rawCardNo = row['card_no'] == null
+          ? ''
+          : (row['card_no'] is num)
+              ? (row['card_no'] as num).isFinite
+                  ? (row['card_no'] as num).toString()
+                  : ''
+              : (row['card_no'] as Object).toString().trim();
+      final visCard = row['vis_card']?.toString().trim() ?? '';
+
+      // Skip empty or invalid card_no (e.g. Infinity, NaN from CSV/number parsing)
+      if (rawCardNo.isEmpty ||
+          rawCardNo.toLowerCase() == 'infinity' ||
+          rawCardNo.toLowerCase() == 'nan') {
+        _logger.w('⚠️ Skipping row with invalid card_no: "$rawCardNo"');
+        continue;
+      }
+      if (visCard.isEmpty) {
+        _logger.w('⚠️ Skipping row with empty vis_card');
+        continue;
+      }
+      // Deduplicate: keep first occurrence of each card_no
+      if (seenCardNos.contains(rawCardNo)) {
+        _logger.d('⚠️ Skipping duplicate card_no: $rawCardNo');
+        continue;
+      }
+      seenCardNos.add(rawCardNo);
+
+      validRows.add({
+        'card_no': rawCardNo,
+        'vis_card': visCard,
+        'created_at': row['created_at'] ?? now,
+      });
+      insertedCount++;
+    }
+
+    _logger.i('✅ Prepared $insertedCount valid rows out of ${rows.length} total');
+
+    // Use a transaction to ensure atomicity: clear table, then insert all records
+    _logger.d('🔄 Starting database transaction (clear + insert)...');
+    final transactionStartTime = DateTime.now();
+    
+    await database.transaction((txn) async {
+      // First, clear all existing records
+      _logger.d('🗑️ Clearing existing records from visitor_list table...');
+      final deletedCount = await txn.delete(tableVisitorList);
+      _logger.i('🗑️ Deleted $deletedCount existing records');
+
+      // Then, insert all new records using batch for efficiency
+      _logger.d('📦 Preparing batch insert for ${validRows.length} records...');
+      final batch = txn.batch();
+      for (final data in validRows) {
+        batch.insert(tableVisitorList, data);
+      }
+      
+      // Commit the batch - this will execute all inserts
+      _logger.d('💾 Committing batch insert...');
+      await batch.commit();
+      _logger.d('✅ Batch commit completed');
+      // Transaction will auto-commit when this function completes successfully
+    });
+
+    final transactionDuration = DateTime.now().difference(transactionStartTime);
+    _logger.i(
+      '✅ Transaction completed successfully. Inserted $insertedCount records in ${transactionDuration.inMilliseconds}ms',
+    );
+
+    return insertedCount;
+  }
+
   // ---------- visitor_logs ----------
 
   Future<int> insertVisitorLog(Map<String, dynamic> row) async {
@@ -235,7 +334,9 @@ class DatabaseHelper {
     return (result.first['c'] as int?) ?? 0;
   }
 
-  Future<List<Map<String, dynamic>>> getVisitorLogsByCardNo(String cardNo) async {
+  Future<List<Map<String, dynamic>>> getVisitorLogsByCardNo(
+    String cardNo,
+  ) async {
     final database = await db;
     return database.query(
       tableVisitorLogs,

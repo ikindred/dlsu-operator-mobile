@@ -5,7 +5,7 @@ import '../../app/theme/app_colors.dart';
 import '../widgets/svg_icon.dart';
 import 'home_page.dart';
 import 'student_page.dart';
-import 'add_page.dart';
+import 'scanner_page.dart';
 import 'visitor_page.dart';
 import 'profile_page.dart';
 
@@ -23,7 +23,7 @@ class MainPage extends StatelessWidget {
           children: const [
             HomePage(),
             StudentPage(),
-            AddPage(),
+            ScannerPage(),
             VisitorPage(),
             ProfilePage(),
           ],

@@ -1,27 +1,55 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:logger/logger.dart';
+import 'package:media_store_plus/media_store_plus.dart';
 import 'app/database/database.dart';
 import 'app/services/storage_service.dart';
 import 'app/routes/app_pages.dart';
 import 'app/routes/app_routes.dart';
 import 'app/theme/app_colors.dart';
 
+final Logger logger = Logger(
+  printer: PrettyPrinter(
+    methodCount: 0,
+    errorMethodCount: 8,
+    lineLength: 120,
+    colors: true,
+    printEmojis: true,
+    printTime: true,
+  ),
+);
+
 /// Set to true to seed the database with sample data on app start (e.g. for dev/demo).
-const bool _kSeedDatabaseOnStart = true;
+/// When true, existing data is cleared every launch—set to false so imports persist across restarts.
+const bool _kSeedDatabaseOnStart = false;
 
 void main() async {
+  logger.i('🚀 App starting...');
   WidgetsFlutterBinding.ensureInitialized();
 
   // Initialize GetStorage
+  logger.d('💾 Initializing storage...');
   await StorageService.init();
 
   // Initialize SQLite database (creates DB and tables on first access)
+  logger.d('🗄️ Initializing database...');
   await DatabaseHelper.instance.db;
+  logger.i('✅ Database initialized');
 
-  if (_kSeedDatabaseOnStart) {
-    await DatabaseSeeder.seed(clearFirst: true);
+  // Initialize MediaStore for saving exports to Downloads (Android)
+  if (Platform.isAndroid) {
+    await MediaStore.ensureInitialized();
+    MediaStore.appFolder = 'OperatorApp';
   }
 
+  if (_kSeedDatabaseOnStart) {
+    logger.i('🌱 Seeding database...');
+    await DatabaseSeeder.seed(clearFirst: true);
+    logger.i('✅ Database seeded');
+  }
+
+  logger.i('🎨 Launching app...');
   runApp(const MyApp());
 }
 
