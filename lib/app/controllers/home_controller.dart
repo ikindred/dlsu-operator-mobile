@@ -280,14 +280,31 @@ class HomeController extends GetxController {
         );
         return;
       }
-      // Export only visitor_logs columns: card_no, vis_card, entry_timestamp (created_at)
+      // Export: card_no, vis_card, entry date, entry time (from created_at)
       final rows = <List<dynamic>>[
-        ['Card No', 'Visitor Card', 'Entry Timestamp'],
-        ...logs.map((row) => [
-              row['card_no']?.toString() ?? '',
-              row['vis_card']?.toString() ?? '',
-              row['created_at']?.toString() ?? '',
-            ]),
+        ['Card No', 'Visitor Card', 'Entry Date', 'Entry Time'],
+        ...logs.map((row) {
+          final createdAt = row['created_at']?.toString() ?? '';
+          String entryDate = '';
+          String entryTime = '';
+          if (createdAt.isNotEmpty) {
+            final dt = DateTime.tryParse(createdAt);
+            if (dt != null) {
+              entryDate = '${dt.year}-${dt.month.toString().padLeft(2, '0')}-${dt.day.toString().padLeft(2, '0')}';
+              entryTime = '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}:${dt.second.toString().padLeft(2, '0')}';
+            } else {
+              final parts = createdAt.split('T');
+              entryDate = parts.isNotEmpty ? parts[0] : '';
+              entryTime = parts.length > 1 ? parts[1].split('.').first : '';
+            }
+          }
+          return [
+            row['card_no']?.toString() ?? '',
+            row['vis_card']?.toString() ?? '',
+            entryDate,
+            entryTime,
+          ];
+        }),
       ];
       final csvString = const ListToCsvConverter().convert(rows);
       final timestamp = DateTime.now().toIso8601String().replaceAll(':', '-').split('.').first;
