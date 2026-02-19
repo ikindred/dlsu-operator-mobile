@@ -1,5 +1,6 @@
 import 'package:get/get.dart';
 import 'package:logger/logger.dart';
+import 'home_controller.dart';
 import 'scanner_controller.dart';
 
 class MainController extends GetxController {
@@ -60,6 +61,12 @@ class MainController extends GetxController {
         _logger.d('[Nav] Entering Scanner tab → startScanning()');
         scanner.startScanning();
       }
+    }
+
+    // Refetch dashboard counts when entering Home so Student List, Student Logs, Visitor List, Visitor Logs are up to date.
+    if (index == homeIndex && Get.isRegistered<HomeController>()) {
+      _logger.d('[Nav] Entering Home → refetching dashboard counts');
+      Get.find<HomeController>().loadDashboardCounts();
     }
   }
 }
