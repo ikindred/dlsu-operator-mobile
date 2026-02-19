@@ -119,7 +119,7 @@ class LoginPage extends StatelessWidget {
                       const SizedBox(height: 8),
                       TextField(
                         decoration: InputDecoration(
-                          hintText: 'Enter your username',
+                          hintText: 'Enter your Employee ID',
                           hintStyle: const TextStyle(color: Colors.grey),
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(12),

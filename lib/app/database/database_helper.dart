@@ -13,7 +13,7 @@ class DatabaseHelper {
   static Database? _db;
   static const String _dbName = 'operator_app.db';
   static const int _dbVersion = 1;
-  
+
   final Logger _logger = Logger(
     printer: PrettyPrinter(
       methodCount: 0,
@@ -46,7 +46,10 @@ class DatabaseHelper {
   Future<void> _onCreate(Database database, int version) async {
     await database.execute('''
       CREATE TABLE $tableStuEmpList (
-        id TEXT PRIMARY KEY,
+        _id INTEGER PRIMARY KEY AUTOINCREMENT,
+        id TEXT UNIQUE,
+        card_no TEXT,
+        type TEXT,
         remarks TEXT,
         status TEXT,
         profile TEXT,
@@ -59,6 +62,8 @@ class DatabaseHelper {
       CREATE TABLE $tableStuEmpLogs (
         _id INTEGER PRIMARY KEY AUTOINCREMENT,
         id TEXT,
+        card_no TEXT,
+        type TEXT,
         remarks TEXT,
         status TEXT,
         profile TEXT,
@@ -97,9 +102,20 @@ class DatabaseHelper {
 
   Future<int> insertStuEmpList(Map<String, dynamic> row) async {
     final database = await db;
+    final id = row['id']?.toString() ?? '';
+    final data = <String, dynamic>{
+      'id': id,
+      'card_no': row['card_no']?.toString(),
+      'type': row['type']?.toString() ?? 'student',
+      'remarks': row['remarks'],
+      'status': row['status'],
+      'profile': row['profile'],
+      'created_at': row['created_at'],
+      'updated_at': row['updated_at'],
+    };
     return database.insert(
       tableStuEmpList,
-      row,
+      data,
       conflictAlgorithm: ConflictAlgorithm.replace,
     );
   }
@@ -127,11 +143,27 @@ class DatabaseHelper {
     return list.isNotEmpty ? list.first : null;
   }
 
+  /// Look up a row in stu_emp_list by card_no (e.g. NFC UID in hex or decimal).
+  Future<Map<String, dynamic>?> getStuEmpListByCardNo(String cardNo) async {
+    if (cardNo.trim().isEmpty) return null;
+    final database = await db;
+    final list = await database.query(
+      tableStuEmpList,
+      where: 'card_no = ?',
+      whereArgs: [cardNo.trim()],
+    );
+    return list.isNotEmpty ? list.first : null;
+  }
+
   Future<int> updateStuEmpList(String id, Map<String, dynamic> row) async {
     final database = await db;
+    final data = Map<String, dynamic>.from(row)
+      ..remove('_id')
+      ..remove('id');
+    if (data.isEmpty) return 0;
     return database.update(
       tableStuEmpList,
-      row,
+      data,
       where: 'id = ?',
       whereArgs: [id],
     );
@@ -142,11 +174,42 @@ class DatabaseHelper {
     return database.delete(tableStuEmpList, where: 'id = ?', whereArgs: [id]);
   }
 
+  /// Saves a scanned card to stu_emp_list (upsert) and adds an entry to stu_emp_logs.
+  /// DISABLED: Scanned cards are only looked up, not saved. Re-enable by uncommenting the body.
+  Future<void> saveScannedCard(String cardId) async {
+    // final now = DateTime.now().toIso8601String();
+    // final profileJson =
+    //     '{"name":"Scanned Card","type":"student","uid":"$cardId"}';
+    // final listRow = <String, dynamic>{
+    //   'id': cardId,
+    //   'card_no': cardId,
+    //   'type': 'student',
+    //   'remarks': 'Scanned via NFC',
+    //   'status': 'allowed',
+    //   'profile': profileJson,
+    //   'created_at': now,
+    //   'updated_at': now,
+    // };
+    // await insertStuEmpList(listRow);
+    // final logRow = <String, dynamic>{
+    //   'id': cardId,
+    //   'card_no': cardId,
+    //   'type': 'student',
+    //   'remarks': '',
+    //   'status': 'allowed',
+    //   'profile': profileJson,
+    //   'created_at': now,
+    // };
+    // await insertStuEmpLog(logRow);
+  }
+
   // ---------- stu_emp_logs ----------
 
   Future<int> insertStuEmpLog(Map<String, dynamic> row) async {
     final database = await db;
-    return database.insert(tableStuEmpLogs, row);
+    final data = Map<String, dynamic>.from(row);
+    data.putIfAbsent('type', () => 'student');
+    return database.insert(tableStuEmpLogs, data);
   }
 
   Future<List<Map<String, dynamic>>> getAllStuEmpLogs() async {
@@ -235,7 +298,7 @@ class DatabaseHelper {
   /// Returns the number of successfully inserted records.
   Future<int> batchInsertVisitorList(List<Map<String, dynamic>> rows) async {
     _logger.i('💾 Starting batch insert. Input rows: ${rows.length}');
-    
+
     final database = await db;
     final now = DateTime.now().toIso8601String();
     int insertedCount = 0;
@@ -248,10 +311,10 @@ class DatabaseHelper {
       final rawCardNo = row['card_no'] == null
           ? ''
           : (row['card_no'] is num)
-              ? (row['card_no'] as num).isFinite
-                  ? (row['card_no'] as num).toString()
-                  : ''
-              : (row['card_no'] as Object).toString().trim();
+          ? (row['card_no'] as num).isFinite
+                ? (row['card_no'] as num).toString()
+                : ''
+          : (row['card_no'] as Object).toString().trim();
       final visCard = row['vis_card']?.toString().trim() ?? '';
 
       // Skip empty or invalid card_no (e.g. Infinity, NaN from CSV/number parsing)
@@ -280,12 +343,14 @@ class DatabaseHelper {
       insertedCount++;
     }
 
-    _logger.i('✅ Prepared $insertedCount valid rows out of ${rows.length} total');
+    _logger.i(
+      '✅ Prepared $insertedCount valid rows out of ${rows.length} total',
+    );
 
     // Use a transaction to ensure atomicity: clear table, then insert all records
     _logger.d('🔄 Starting database transaction (clear + insert)...');
     final transactionStartTime = DateTime.now();
-    
+
     await database.transaction((txn) async {
       // First, clear all existing records
       _logger.d('🗑️ Clearing existing records from visitor_list table...');
@@ -298,7 +363,7 @@ class DatabaseHelper {
       for (final data in validRows) {
         batch.insert(tableVisitorList, data);
       }
-      
+
       // Commit the batch - this will execute all inserts
       _logger.d('💾 Committing batch insert...');
       await batch.commit();

@@ -67,7 +67,11 @@ class SplashController extends GetxController {
       Get.offAllNamed(AppRoutes.HOME);
     } catch (e, stackTrace) {
       // Login failed -> clear cache and go to login
-      _logger.e('❌ Auto-login failed, clearing cache', error: e, stackTrace: stackTrace);
+      _logger.e(
+        '❌ Auto-login failed, clearing cache',
+        error: e,
+        stackTrace: stackTrace,
+      );
       await _storageService.clearAccount();
       isLoading.value = false;
       //todo: uncomment this when login is implemented

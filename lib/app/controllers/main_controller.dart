@@ -21,26 +21,33 @@ class MainController extends GetxController {
   static const int visitorIndex = 3;
   static const int profileIndex = 4;
 
-  void goTo(int index) {
+  Future<void> goTo(int index) async {
     if (index < 0 || index > 4) {
       _logger.w('⚠️ Invalid navigation index: $index');
       return;
     }
     final wasOnScanner = currentIndex.value == fabIndex;
-    final pageNames = ['Home', 'Student', 'Scanner', 'Visitor', 'Profile'];
-    _logger.d('🧭 Navigating to ${pageNames[index]} (from ${pageNames[currentIndex.value]})');
-    
-    currentIndex.value = index;
     final nowOnScanner = index == fabIndex;
+    final pageNames = ['Home', 'Student', 'Scanner', 'Visitor', 'Profile'];
+
     if (Get.isRegistered<ScannerController>()) {
       final scanner = Get.find<ScannerController>();
-      // Stop scanning when leaving scanner page
       if (wasOnScanner && !nowOnScanner) {
-        _logger.d('🛑 Leaving scanner page, stopping scan');
-        scanner.stopScanning();
+        _logger.d('🛑 Leaving scanner page, stopping NFC reader…');
+        await scanner.stopScanning();
+        _logger.d('🛑 NFC reader stopped');
       }
-      // Don't auto-start scanning when entering scanner page
-      // User must explicitly press "Start Scanning" button
+    }
+
+    _logger.d('🧭 Navigating to ${pageNames[index]} (from ${pageNames[currentIndex.value]})');
+    currentIndex.value = index;
+
+    if (Get.isRegistered<ScannerController>()) {
+      final scanner = Get.find<ScannerController>();
+      if (nowOnScanner) {
+        _logger.d('📱 Entering scanner page, auto-starting scan');
+        scanner.startScanning();
+      }
     }
   }
 }

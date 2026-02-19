@@ -20,9 +20,22 @@ class NfcCardResult {
 /// iOS: nfc_manager.
 class NfcService {
   NfcService()
-      : _logger = Logger(printer: PrettyPrinter(methodCount: 0, errorMethodCount: 4, lineLength: 80, colors: true, printEmojis: true, printTime: true)),
-        _nfcChannel = const MethodChannel('com.example.operator_mobile_app/nfc_foreground'),
-        _nfcEventChannel = const EventChannel('com.example.operator_mobile_app/nfc_tag_events');
+    : _logger = Logger(
+        printer: PrettyPrinter(
+          methodCount: 0,
+          errorMethodCount: 4,
+          lineLength: 80,
+          colors: true,
+          printEmojis: true,
+          printTime: true,
+        ),
+      ),
+      _nfcChannel = const MethodChannel(
+        'com.example.operator_mobile_app/nfc_foreground',
+      ),
+      _nfcEventChannel = const EventChannel(
+        'com.example.operator_mobile_app/nfc_tag_events',
+      );
 
   final Logger _logger;
   final MethodChannel _nfcChannel;
@@ -76,7 +89,12 @@ class NfcService {
             _logger.i('NFC tag read (foreground): $uid');
             sub?.cancel();
             _nfcChannel.invokeMethod('disableNfcForeground');
-            complete(NfcCardResult(uid: uid.toUpperCase(), timestamp: DateTime.now().millisecondsSinceEpoch));
+            complete(
+              NfcCardResult(
+                uid: uid.toUpperCase(),
+                timestamp: DateTime.now().millisecondsSinceEpoch,
+              ),
+            );
           }
         },
         onError: (e) {
@@ -148,7 +166,9 @@ class NfcService {
   }
 
   static String _bytesToHex(Uint8List bytes) {
-    return bytes.map((b) => (b & 0xff).toRadixString(16).padLeft(2, '0').toUpperCase()).join();
+    return bytes
+        .map((b) => (b & 0xff).toRadixString(16).padLeft(2, '0').toUpperCase())
+        .join();
   }
 
   /// Cancel current scan (disable foreground dispatch on Android, stop session on iOS).

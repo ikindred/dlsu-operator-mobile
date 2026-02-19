@@ -45,10 +45,13 @@ class DatabaseSeeder {
     _logger.d('📚 Seeding student/employee list...');
     final now = DateTime.now();
     final base = now.subtract(const Duration(days: 30));
-    // status values: "allowed", "not_allowed"
+    // status values: "allowed", "not_allowed"; type: "student" or "employee"
+    // _id is auto-increment; id = student/employee number
     final rows = [
       {
         'id': 'STU-001',
+        'card_no': 'STU-001',
+        'type': 'student',
         'remarks': 'Enrolled - BS Computer Science',
         'status': 'allowed',
         'profile': '{"name":"Maria Santos","type":"student","course":"BSCS"}',
@@ -57,6 +60,8 @@ class DatabaseSeeder {
       },
       {
         'id': 'STU-002',
+        'card_no': 'STU-002',
+        'type': 'student',
         'remarks': 'Enrolled - BS Information Systems',
         'status': 'allowed',
         'profile': '{"name":"Juan Dela Cruz","type":"student","course":"BSIS"}',
@@ -65,6 +70,8 @@ class DatabaseSeeder {
       },
       {
         'id': 'EMP-001',
+        'card_no': 'EMP-001',
+        'type': 'employee',
         'remarks': 'Faculty - College of Engineering',
         'status': 'allowed',
         'profile': '{"name":"Dr. Ana Reyes","type":"employee","dept":"COE"}',
@@ -73,6 +80,8 @@ class DatabaseSeeder {
       },
       {
         'id': 'STU-003',
+        'card_no': 'STU-003',
+        'type': 'student',
         'remarks': 'On leave - Medical',
         'status': 'not_allowed',
         'profile': '{"name":"Pedro Garcia","type":"student","course":"BSCS"}',
@@ -89,10 +98,12 @@ class DatabaseSeeder {
   static Future<void> _seedStuEmpLogs() async {
     _logger.d('📝 Seeding student/employee logs...');
     final now = DateTime.now();
-    // Green: allowed, no remarks. Yellow: allowed, with remarks. Red: not_allowed.
+    // Green: allowed, no remarks. Yellow: allowed, with remarks. Red: not_allowed. type: "student" or "employee"
     final rows = [
       {
         'id': '03124824',
+        'card_no': '03124824',
+        'type': 'student',
         'remarks': '',
         'status': 'allowed',
         'profile': null,
@@ -100,6 +111,8 @@ class DatabaseSeeder {
       },
       {
         'id': '03124825',
+        'card_no': '03124825',
+        'type': 'student',
         'remarks': 'Late enrollment',
         'status': 'allowed',
         'profile': null,
@@ -107,6 +120,8 @@ class DatabaseSeeder {
       },
       {
         'id': '03124826',
+        'card_no': '03124826',
+        'type': 'student',
         'remarks': '',
         'status': 'not_allowed',
         'profile': null,

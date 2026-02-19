@@ -96,6 +96,7 @@ flutter:
     - assets/png/background.png
     - assets/png/logo.png
     - assets/png/verifyi.png
+    - assets/png/scanner.png
     - assets/svg/
 
   # An image asset can refer to one or more resolution-specific "variants", see
