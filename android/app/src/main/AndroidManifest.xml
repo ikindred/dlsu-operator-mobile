@@ -10,6 +10,10 @@
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher"
         android:requestLegacyExternalStorage="true">
+        <!-- Use Skia instead of Impeller on Android to avoid Adreno/GraphicBuffer errors on some devices (e.g. C66). Remove if not needed. -->
+        <meta-data
+            android:name="io.flutter.embedding.android.EnableImpeller"
+            android:value="false" />
         <activity
             android:name=".MainActivity"
             android:exported="true"
@@ -31,12 +35,17 @@
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
-            <!-- NFC: receive tag when app is in foreground (foreground dispatch) -->
-            <intent-filter>
-                <action android:name="android.nfc.action.TAG_DISCOVERED"/>
-                <category android:name="android.intent.category.DEFAULT"/>
-            </intent-filter>
+            <!-- Do NOT add android.nfc.action.TAG_DISCOVERED here. We only receive NFC when the
+                 Scanner tab calls enableForegroundDispatch(); without this filter, tapping a card
+                 on Home does not deliver the intent to us, so the app does not restart. -->
         </activity>
+        <!-- Transparent activity used to trigger onPause so NFC can be disabled. -->
+        <activity
+            android:name=".NfcDisableHelperActivity"
+            android:exported="false"
+            android:theme="@android:style/Theme.Translucent.NoTitleBar"
+            android:excludeFromRecents="true"
+            android:taskAffinity="" />
         <!-- Don't delete the meta-data below.
              This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->
         <meta-data

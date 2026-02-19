@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../../app/controllers/main_controller.dart';
@@ -14,8 +15,15 @@ class ScannerPage extends StatelessWidget {
   Widget build(BuildContext context) {
     final controller = Get.find<ScannerController>();
     final mainController = Get.find<MainController>();
-    // When this page is in the tree but not visible (user on another tab), ensure NFC is off
-    if (mainController.currentIndex.value != MainController.fabIndex) {
+    final onScannerTab = mainController.currentIndex.value == MainController.fabIndex;
+    if (kDebugMode) {
+      if (onScannerTab) {
+        debugPrint('[ScannerPage] ► visible (current tab = Scanner)');
+      } else {
+        debugPrint('[ScannerPage] build: not visible (current tab index=${mainController.currentIndex.value}), scheduling stopScanning');
+      }
+    }
+    if (!onScannerTab) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (Get.isRegistered<ScannerController>()) {
           Get.find<ScannerController>().stopScanning();
@@ -33,12 +41,17 @@ class ScannerPage extends StatelessWidget {
             final uid = controller.lastScannedUid.value;
             final error = controller.scanError.value;
 
-            if (record != null) {
+            // Valid card: has a record with id or card_no (display info)
+            final hasValidRecord = record != null &&
+                record.isNotEmpty &&
+                (record['id'] != null || record['card_no'] != null);
+            if (hasValidRecord) {
               return _ScannedResultCard(
                 record: record,
                 onClearAndScanAgain: controller.clearAndScanAgain,
               );
             }
+            // Invalid card: we got a UID but no matching record (display invalid + card no)
             if (uid != null && uid.isNotEmpty) {
               final displayNumber = ScannerController.hexUidToDecimal(uid) ?? uid;
               return _CardNotFoundState(

@@ -15,6 +15,18 @@ class MainController extends GetxController {
   );
   final RxInt currentIndex = 0.obs;
 
+  static const List<String> _pageNames = ['Home', 'Student', 'Scanner', 'Visitor', 'Profile'];
+
+  @override
+  void onReady() {
+    super.onReady();
+    _logger.i('[Nav] ► Current page: ${_pageNames[currentIndex.value]} (initial)');
+    _logger.d('[Nav] MainController onReady — ensuring scanner off (start on Home)');
+    if (Get.isRegistered<ScannerController>()) {
+      Get.find<ScannerController>().stopScanning();
+    }
+  }
+
   static const int homeIndex = 0;
   static const int studentIndex = 1;
   static const int fabIndex = 2;
@@ -23,29 +35,29 @@ class MainController extends GetxController {
 
   Future<void> goTo(int index) async {
     if (index < 0 || index > 4) {
-      _logger.w('⚠️ Invalid navigation index: $index');
+      _logger.w('[Nav] Invalid index: $index');
       return;
     }
     final wasOnScanner = currentIndex.value == fabIndex;
     final nowOnScanner = index == fabIndex;
-    final pageNames = ['Home', 'Student', 'Scanner', 'Visitor', 'Profile'];
+    _logger.d('[Nav] goTo($index)=${_pageNames[index]} — wasOnScanner=$wasOnScanner nowOnScanner=$nowOnScanner');
 
     if (Get.isRegistered<ScannerController>()) {
       final scanner = Get.find<ScannerController>();
       if (wasOnScanner && !nowOnScanner) {
-        _logger.d('🛑 Leaving scanner page, stopping NFC reader…');
+        _logger.d('[Nav] Leaving Scanner tab → stopping NFC');
         await scanner.stopScanning();
-        _logger.d('🛑 NFC reader stopped');
+        _logger.d('[Nav] NFC stopped after leaving Scanner');
       }
     }
 
-    _logger.d('🧭 Navigating to ${pageNames[index]} (from ${pageNames[currentIndex.value]})');
     currentIndex.value = index;
+    _logger.i('[Nav] ► Current page: ${_pageNames[index]}');
 
     if (Get.isRegistered<ScannerController>()) {
       final scanner = Get.find<ScannerController>();
       if (nowOnScanner) {
-        _logger.d('📱 Entering scanner page, auto-starting scan');
+        _logger.d('[Nav] Entering Scanner tab → startScanning()');
         scanner.startScanning();
       }
     }

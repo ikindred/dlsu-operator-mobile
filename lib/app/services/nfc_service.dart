@@ -41,17 +41,23 @@ class NfcService {
   final MethodChannel _nfcChannel;
   final EventChannel _nfcEventChannel;
 
+  /// Active tag-read subscription; cancelled in stopSession() so native sink clears when leaving Scanner.
+  StreamSubscription<dynamic>? _tagSubscription;
+  void Function()? _cancelTagRead;
+
   /// Check if NFC is available and enabled.
   Future<bool> get isAvailable async {
     try {
       if (defaultTargetPlatform == TargetPlatform.android) {
         final ok = await _nfcChannel.invokeMethod<bool>('isNfcAvailable');
+        _logger.d('[NFC] isAvailable (Android) => $ok');
         return ok ?? false;
       }
       final a = await NfcManager.instance.checkAvailability();
+      _logger.d('[NFC] isAvailable (iOS) => $a');
       return a == NfcAvailability.enabled;
     } catch (e) {
-      _logger.w('NFC check failed: $e');
+      _logger.w('[NFC] isAvailable failed: $e');
       return false;
     }
   }
@@ -69,58 +75,78 @@ class NfcService {
   /// Android: enable foreground dispatch and listen for tag intent.
   Future<NfcCardResult?> _readTagAndroid() async {
     try {
+      _logger.d('[NFC] _readTagAndroid start');
       final available = await isAvailable;
       if (!available) {
-        _logger.w('NFC is not available or disabled');
+        _logger.w('[NFC] _readTagAndroid aborted — NFC not available or disabled');
         return null;
       }
 
       final completer = Completer<NfcCardResult?>();
       void complete(NfcCardResult? r) {
         if (!completer.isCompleted) completer.complete(r);
+        _tagSubscription = null;
+        _cancelTagRead = null;
       }
 
-      StreamSubscription? sub;
+      _logger.d('[NFC] attaching EventChannel listener (tag_events)');
+      StreamSubscription<dynamic>? sub;
       sub = _nfcEventChannel.receiveBroadcastStream().listen(
         (dynamic event) {
           if (completer.isCompleted) return;
           final uid = event is String ? event : event?.toString();
           if (uid != null && uid.isNotEmpty) {
-            _logger.i('NFC tag read (foreground): $uid');
+            _logger.i('[NFC] tag received on stream => uid=$uid, cancelling subscription, calling disableNfcForeground');
             sub?.cancel();
             _nfcChannel.invokeMethod('disableNfcForeground');
             complete(
               NfcCardResult(
-                uid: uid.toUpperCase(),
+                uid: uid.trim().toUpperCase(),
                 timestamp: DateTime.now().millisecondsSinceEpoch,
               ),
             );
           }
         },
         onError: (e) {
-          _logger.w('NFC event error: $e');
+          _logger.w('[NFC] tag stream onError: $e');
           if (!completer.isCompleted) complete(null);
         },
         onDone: () {
+          _logger.d('[NFC] tag stream onDone');
           if (!completer.isCompleted) complete(null);
         },
         cancelOnError: true,
       );
 
-      Future.delayed(_sessionTimeout, () {
+      _tagSubscription = sub;
+      _cancelTagRead = () {
         if (!completer.isCompleted) {
-          _logger.d('NFC session timeout');
+          _logger.d('[NFC] _cancelTagRead: cancelling sub + disableNfcForeground');
           sub?.cancel();
           _nfcChannel.invokeMethod('disableNfcForeground');
           complete(null);
         }
+      };
+
+      Future.delayed(_sessionTimeout, () {
+        if (!completer.isCompleted) {
+          _logger.d('[NFC] session timeout (${_sessionTimeout.inSeconds}s), cancelling');
+          _cancelTagRead?.call();
+        }
       });
 
+      _logger.d('[NFC] delay 150ms then enableNfcForeground');
+      await Future.delayed(const Duration(milliseconds: 150));
       await _nfcChannel.invokeMethod('enableNfcForeground');
-      return completer.future;
+      _logger.d('[NFC] enableNfcForeground returned, waiting for tag or timeout');
+      final out = await completer.future;
+      _logger.d('[NFC] readTag returning: ${out != null ? "uid=${out.uid}" : "null"}');
+      return out;
     } catch (e, st) {
-      _logger.w('NFC read error: $e');
+      _logger.w('[NFC] _readTagAndroid error: $e');
       _logger.d(st.toString());
+      _tagSubscription = null;
+      _cancelTagRead = null;
       return null;
     }
   }
@@ -172,15 +198,23 @@ class NfcService {
   }
 
   /// Cancel current scan (disable foreground dispatch on Android, stop session on iOS).
+  /// On Android, cancels the tag listener so native nfcEventSink is cleared (no tag handling on Home).
   Future<void> stopSession() async {
     try {
       if (defaultTargetPlatform == TargetPlatform.android) {
+        _logger.d('[NFC] stopSession: cancel subscription + disableNfcForeground');
+        _tagSubscription?.cancel();
+        _tagSubscription = null;
+        _cancelTagRead?.call();
+        _cancelTagRead = null;
         await _nfcChannel.invokeMethod('disableNfcForeground');
+        _logger.d('[NFC] stopSession done');
       } else {
+        _logger.d('[NFC] stopSession (iOS)');
         await NfcManager.instance.stopSession();
       }
     } catch (e) {
-      _logger.d('stopSession: $e');
+      _logger.d('[NFC] stopSession error: $e');
     }
   }
 }
