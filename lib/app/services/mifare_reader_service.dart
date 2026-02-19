@@ -69,7 +69,13 @@ class MifareReaderService {
       _logger.i('✅ Card read successfully. UID: ${cardResult.uid}');
       return cardResult;
     } on PlatformException catch (e, stackTrace) {
-      _logger.w('⚠️ Card read error', error: e, stackTrace: stackTrace);
+      // "No card detected" is expected while waiting for tap; log at debug to avoid log spam
+      if (e.code == 'READ_ERROR' &&
+          (e.message?.toLowerCase().contains('no card detected') ?? false)) {
+        _logger.d('📭 No card detected (tap card to scan)');
+      } else {
+        _logger.w('⚠️ Card read error', error: e, stackTrace: stackTrace);
+      }
       return null;
     }
   }

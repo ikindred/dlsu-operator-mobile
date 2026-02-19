@@ -1,10 +1,10 @@
-import 'dart:async';
 import 'package:get/get.dart';
 import 'package:logger/logger.dart';
-import '../services/mifare_reader_service.dart';
+import '../services/nfc_service.dart';
 
+/// Uses only the device's built-in NFC (nfc_manager). No SDK required.
 class ScannerController extends GetxController {
-  final MifareReaderService _reader = MifareReaderService();
+  final NfcService _nfc = NfcService();
   final Logger _logger = Logger(
     printer: PrettyPrinter(
       methodCount: 0,
@@ -18,101 +18,70 @@ class ScannerController extends GetxController {
 
   final Rx<String?> lastScannedUid = Rx<String?>(null);
   final RxBool isScanning = false.obs;
-
-  bool _stopPolling = false;
+  final Rx<String?> scanError = Rx<String?>(null);
 
   @override
   void onInit() {
     super.onInit();
-    _logger.i('📱 ScannerController initialized');
-    // Don't start scanning automatically - wait for explicit user action
+    _logger.i('📱 ScannerController initialized (built-in NFC only)');
   }
 
   @override
   void onClose() {
     _logger.d('🛑 ScannerController closing');
-    _stopPolling = true;
-    _reader.disposeReader();
+    _nfc.stopSession();
     super.onClose();
   }
 
-  /// Start the reader and poll until a card is read.
   Future<void> _startScanning() async {
     if (isScanning.value) {
-      _logger.w('⚠️ Already scanning, skipping start');
+      _logger.w('⚠️ Already scanning');
       return;
     }
-    _logger.i('🔍 Starting card scanning...');
+    _logger.i('🔍 Starting NFC scan...');
     lastScannedUid.value = null;
-    _stopPolling = false;
+    scanError.value = null;
     isScanning.value = true;
 
-    _logger.d('🔧 Initializing MIFARE reader...');
-    final ok = await _reader.initialize();
-    if (!ok) {
-      _logger.e('❌ Failed to initialize MIFARE reader');
-      isScanning.value = false;
-      return;
-    }
-    _logger.i('✅ MIFARE reader initialized successfully');
-
-    _pollForCard();
-  }
-
-  Future<void> _pollForCard() async {
-    _logger.d('🔄 Starting card polling loop...');
-    while (!_stopPolling && lastScannedUid.value == null) {
-      final result = await _reader.readCard();
-      if (_stopPolling) {
-        _logger.d('🛑 Polling stopped by user');
-        break;
-      }
-      if (result != null && result.uid.isNotEmpty) {
-        _logger.i('✅ Card scanned successfully. UID: ${result.uid}');
-        lastScannedUid.value = result.uid;
-        isScanning.value = false;
+    try {
+      final available = await _nfc.isAvailable;
+      if (!available) {
+        scanError.value = 'NFC is off or not supported. Turn on NFC in Settings.';
+        _logger.w(scanError.value);
         return;
       }
-      await Future<void>.delayed(const Duration(milliseconds: 1500));
-    }
-    if (_stopPolling) {
-      _logger.d('🛑 Polling stopped');
+      final result = await _nfc.readTag();
+      if (result != null && result.uid.isNotEmpty) {
+        _logger.i('✅ Card scanned. UID: ${result.uid}');
+        lastScannedUid.value = result.uid;
+      } else {
+        scanError.value = 'No card read. Hold the card steady on the back of the device.';
+      }
+    } catch (e, st) {
+      _logger.e('Scan error', error: e, stackTrace: st);
+      scanError.value = 'Scan failed: $e';
+    } finally {
       isScanning.value = false;
     }
   }
 
-  /// Clear the last result and start scanning again.
   void clearAndScanAgain() {
-    _logger.i('🔄 Clearing result and starting scan again');
+    scanError.value = null;
     lastScannedUid.value = null;
     _startScanning();
   }
 
-  /// Stop polling when user leaves the scanner page.
   void stopScanning() {
-    _logger.i('🛑 Stopping scanning');
-    _stopPolling = true;
+    _nfc.stopSession();
     isScanning.value = false;
   }
 
-  /// Resume polling when user returns to the scanner page (if no result is shown).
-  void resumeScanningIfNeeded() {
-    if (lastScannedUid.value != null) return;
-    if (isScanning.value) return;
-    // Don't auto-start - require explicit user action
-  }
-
-  /// Public method to start scanning - call this when user explicitly wants to scan
   void startScanning() {
-    _logger.i('▶️ Start scanning requested by user');
     _startScanning();
   }
 
-  /// Call from logout to release the reader.
   Future<void> disposeReader() async {
-    _logger.i('🗑️ Disposing reader');
-    _stopPolling = true;
-    await _reader.disposeReader();
+    await _nfc.stopSession();
     isScanning.value = false;
   }
 }

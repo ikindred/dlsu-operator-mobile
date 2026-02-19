@@ -68,6 +68,7 @@ dependencies:
 
   # Logger for better logging
   logger: ^2.4.0
+  nfc_manager: ^4.1.1
 
 dev_dependencies:
   flutter_test:

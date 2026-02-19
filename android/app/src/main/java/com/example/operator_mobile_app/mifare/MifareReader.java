@@ -82,6 +82,9 @@ public class MifareReader implements MethodCallHandler {
             if (rfid14443.init()) {
                 isInitialized = true;
                 Log.d(TAG, "MIFARE reader initialized successfully");
+                logPublicMethods(rfid14443);
+                tryCallAfterInit("open");
+                tryCallAfterInit("powerOn");
                 result.success(true);
             } else {
                 Log.e(TAG, "RFIDWithISO14443A init() failed");
@@ -96,51 +99,174 @@ public class MifareReader implements MethodCallHandler {
         }
     }
 
+    /** Max time to wait for a card tap (milliseconds). */
+    private static final int READ_POLL_TIMEOUT_MS = 8000;
+    /** Interval between request() calls while waiting for card (milliseconds). */
+    private static final int READ_POLL_INTERVAL_MS = 100;
+    /** Method names to try for card detection (SDK may use different names). */
+    private static final String[] REQUEST_METHOD_NAMES = {"request", "requestA", "findCard", "getCard"};
+
+    private void logPublicMethods(RFIDWithISO14443A reader) {
+        try {
+            Class<?> c = reader.getClass();
+            Log.e(TAG, "Reader class: " + c.getName());
+            if (c.getSuperclass() != null) {
+                Log.e(TAG, "Reader superclass: " + c.getSuperclass().getName());
+            }
+            java.lang.reflect.Method[] methods = c.getMethods();
+            StringBuilder sb = new StringBuilder("Public methods: ");
+            for (java.lang.reflect.Method m : methods) {
+                sb.append(m.getName()).append(" ");
+            }
+            Log.e(TAG, sb.toString());
+        } catch (Exception e) {
+            Log.w(TAG, "logPublicMethods: " + e.getMessage());
+        }
+    }
+
+    /** Call parameterless method on reader after init if it exists (e.g. open, powerOn). */
+    private void tryCallAfterInit(String methodName) {
+        try {
+            java.lang.reflect.Method m = rfid14443.getClass().getMethod(methodName);
+            Object ret = m.invoke(rfid14443);
+            Log.d(TAG, methodName + "() returned: " + (ret != null ? ret : "void"));
+        } catch (NoSuchMethodException e) {
+            // optional
+        } catch (Exception e) {
+            Log.w(TAG, methodName + "(): " + e.getMessage());
+        }
+    }
+
     /**
-     * Perform a single MIFARE card read (request card and return UID).
-     * Runs on a background thread to avoid blocking the UI.
+     * Perform a MIFARE card read. Polls the reader for up to READ_POLL_TIMEOUT_MS
+     * so the user has time to tap the card; returns UID when detected.
+     * Polling runs on main thread (some device SDKs require main-thread access).
      */
     private void readCard(Result result) {
         if (!isInitialized || rfid14443 == null) {
             result.error("NOT_INITIALIZED", "MIFARE reader not initialized", null);
             return;
         }
-        new Thread(() -> {
-            try {
-                byte[] uid = null;
-                // SDK: request() may return byte[] (UID) or boolean; getUID() may exist for post-request
-                try {
-                    java.lang.reflect.Method requestMethod = rfid14443.getClass().getMethod("request");
-                    Object ret = requestMethod.invoke(rfid14443);
-                    if (ret instanceof byte[]) {
-                        uid = (byte[]) ret;
-                    } else if (ret instanceof Boolean && (Boolean) ret) {
-                        try {
-                            java.lang.reflect.Method getUid = rfid14443.getClass().getMethod("getUID");
-                            Object u = getUid.invoke(rfid14443);
-                            if (u instanceof byte[]) uid = (byte[]) u;
-                        } catch (Exception e) {
-                            Log.w(TAG, "getUID after request: " + e.getMessage());
-                        }
-                    }
-                } catch (Exception e) {
-                    Log.e(TAG, "request/getUID reflection: " + e.getMessage());
-                }
-                if (uid == null || uid.length == 0) {
-                    runOnMain(() -> result.error("READ_ERROR", "No card detected or reader busy", null));
+        _loggedRequestReturn = false;
+        final android.os.Handler handler = new android.os.Handler(android.os.Looper.getMainLooper());
+        final long deadline = System.currentTimeMillis() + READ_POLL_TIMEOUT_MS;
+        final int[] pollCount = {0};
+
+        final Runnable pollOnce = new Runnable() {
+            @Override
+            public void run() {
+                if (System.currentTimeMillis() >= deadline) {
+                    Log.d(TAG, "Read timeout, no card");
+                    result.error("READ_ERROR", "No card detected or reader busy", null);
                     return;
                 }
-                final String uidHex = bytesToHex(uid);
-                playBeep();
-                Map<String, Object> data = new HashMap<>();
-                data.put("uid", uidHex);
-                data.put("timestamp", System.currentTimeMillis());
-                runOnMain(() -> result.success(data));
-            } catch (Exception e) {
-                Log.e(TAG, "readCard error: " + e.getMessage());
-                runOnMain(() -> result.error("READ_ERROR", e.getMessage(), null));
+                try {
+                    byte[] uid = tryRequestUid();
+                    if (uid != null && uid.length > 0) {
+                        final String uidHex = bytesToHex(uid);
+                        playBeep();
+                        Map<String, Object> data = new HashMap<>();
+                        data.put("uid", uidHex);
+                        data.put("timestamp", System.currentTimeMillis());
+                        result.success(data);
+                        return;
+                    }
+                    pollCount[0]++;
+                    if (pollCount[0] == 1 || pollCount[0] % 50 == 0) {
+                        Log.d(TAG, "Waiting for card... (poll " + pollCount[0] + ")");
+                    }
+                    handler.postDelayed(this, READ_POLL_INTERVAL_MS);
+                } catch (Exception e) {
+                    Log.e(TAG, "readCard error: " + e.getMessage());
+                    result.error("READ_ERROR", e.getMessage(), null);
+                }
             }
-        }).start();
+        };
+        handler.post(pollOnce);
+    }
+
+    private boolean _loggedRequestReturn = false;
+
+    /** Try all known request-style methods and getUID(); returns UID bytes or null. */
+    private byte[] tryRequestUid() {
+        Class<?> clazz = rfid14443.getClass();
+        for (String methodName : REQUEST_METHOD_NAMES) {
+            try {
+                java.lang.reflect.Method m = clazz.getMethod(methodName);
+                Object ret = m.invoke(rfid14443);
+                if (!_loggedRequestReturn) {
+                    logReturn(methodName + "()", ret);
+                }
+                byte[] u = parseRequestResult(ret);
+                if (u != null) {
+                    _loggedRequestReturn = false;
+                    return u;
+                }
+            } catch (NoSuchMethodException e) {
+                // try next name
+            } catch (Exception e) {
+                Log.w(TAG, methodName + " failed: " + e.getMessage());
+            }
+        }
+        try {
+            java.lang.reflect.Method m = clazz.getMethod("request", int.class);
+            Object ret = m.invoke(rfid14443, 500);
+            if (!_loggedRequestReturn) {
+                logReturn("request(500)", ret);
+            }
+            byte[] u = parseRequestResult(ret);
+            if (u != null) {
+                _loggedRequestReturn = false;
+                return u;
+            }
+        } catch (NoSuchMethodException e) {
+            // ignore
+        } catch (Exception e) {
+            Log.w(TAG, "request(int) failed: " + e.getMessage());
+        }
+        byte[] u = invokeGetUID();
+        if (!_loggedRequestReturn) {
+            logReturn("getUID()", u);
+        }
+        _loggedRequestReturn = true;
+        return u;
+    }
+
+    private void logReturn(String label, Object ret) {
+        if (ret == null) {
+            Log.e(TAG, "SDK " + label + " returned: null");
+        } else if (ret instanceof byte[]) {
+            byte[] b = (byte[]) ret;
+            Log.e(TAG, "SDK " + label + " returned: byte[" + b.length + "] " + bytesToHex(b));
+        } else {
+            Log.e(TAG, "SDK " + label + " returned: " + ret.getClass().getSimpleName() + " = " + ret);
+        }
+    }
+
+    private byte[] parseRequestResult(Object ret) {
+        if (ret instanceof byte[]) {
+            byte[] u = (byte[]) ret;
+            if (u != null && u.length > 0) return u;
+        } else if (ret instanceof Boolean && (Boolean) ret) {
+            return invokeGetUID();
+        } else if (ret instanceof Integer && (Integer) ret != 0) {
+            return invokeGetUID();
+        }
+        return null;
+    }
+
+    private byte[] invokeGetUID() {
+        try {
+            java.lang.reflect.Method getUid = rfid14443.getClass().getMethod("getUID");
+            Object u = getUid.invoke(rfid14443);
+            if (u instanceof byte[]) {
+                byte[] arr = (byte[]) u;
+                if (arr != null && arr.length > 0) return arr;
+            }
+        } catch (Exception e) {
+            // ignore
+        }
+        return null;
     }
 
     private void runOnMain(Runnable r) {

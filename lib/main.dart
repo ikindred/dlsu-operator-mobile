@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:logger/logger.dart';
 import 'package:media_store_plus/media_store_plus.dart';
@@ -42,6 +43,12 @@ void main() async {
     await MediaStore.ensureInitialized();
     MediaStore.appFolder = 'OperatorApp';
   }
+
+  // Lock screen orientation to portrait only
+  await SystemChrome.setPreferredOrientations([
+    DeviceOrientation.portraitUp,
+    DeviceOrientation.portraitDown,
+  ]);
 
   if (_kSeedDatabaseOnStart) {
     logger.i('🌱 Seeding database...');
