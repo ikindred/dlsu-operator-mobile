@@ -41,6 +41,9 @@ dependencies:
   # GetStorage for local storage
   get_storage: ^2.1.1
 
+  # Environment variables from .env
+  flutter_dotenv: ^5.2.1
+
   # HTTP client for API calls
   http: ^1.2.0
 
@@ -93,6 +96,7 @@ flutter:
 
   # To add assets to your application, add an assets section, like this:
   assets:
+    - .env
     - assets/png/background.png
     - assets/png/logo.png
     - assets/png/verifyi.png

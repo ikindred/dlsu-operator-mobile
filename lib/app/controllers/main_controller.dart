@@ -2,6 +2,8 @@ import 'package:get/get.dart';
 import 'package:logger/logger.dart';
 import 'home_controller.dart';
 import 'scanner_controller.dart';
+import 'student_controller.dart';
+import 'visitor_controller.dart';
 
 class MainController extends GetxController {
   final Logger _logger = Logger(
@@ -67,6 +69,18 @@ class MainController extends GetxController {
     if (index == homeIndex && Get.isRegistered<HomeController>()) {
       _logger.d('[Nav] Entering Home → refetching dashboard counts');
       Get.find<HomeController>().loadDashboardCounts();
+    }
+
+    // Refetch student logs when entering Student tab so list and count are up to date.
+    if (index == studentIndex && Get.isRegistered<StudentController>()) {
+      _logger.d('[Nav] Entering Student tab → refetching student logs');
+      Get.find<StudentController>().refresh();
+    }
+
+    // Refetch visitor logs when entering Visitor tab so list and count are up to date.
+    if (index == visitorIndex && Get.isRegistered<VisitorController>()) {
+      _logger.d('[Nav] Entering Visitor tab → refetching visitor logs');
+      Get.find<VisitorController>().refresh();
     }
   }
 }

@@ -22,8 +22,10 @@ class ScannerController extends GetxController {
   );
 
   final Rx<String?> lastScannedUid = Rx<String?>(null);
-  /// Record from stu_emp_list after lookup by card_no; null if not found or not yet scanned.
+  /// Record from stu_emp_list or visitor_list after lookup by card_no; null if not found or not yet scanned.
   final Rx<Map<String, dynamic>?> scannedRecord = Rx<Map<String, dynamic>?>(null);
+  /// True when scannedRecord is from visitor_list (so UI shows Visitor card instead of Student/Employee).
+  final RxBool isVisitorResult = false.obs;
   final RxBool isScanning = false.obs;
   final Rx<String?> scanError = Rx<String?>(null);
 
@@ -95,6 +97,7 @@ class ScannerController extends GetxController {
     _logger.i('[Scanner] _startScanning — step 0: clearing state, isScanning=true');
     lastScannedUid.value = null;
     scannedRecord.value = null;
+    isVisitorResult.value = false;
     scanError.value = null;
     isScanning.value = true;
     _logState(note: 'started scan');
@@ -123,7 +126,7 @@ class ScannerController extends GetxController {
       await _nfc.stopSession();
       _logger.d('[Scanner] step 3 ok: scanner stopped');
 
-      // 4. Determine valid vs invalid (lookup by card_no: hex and decimal)
+      // 4. Lookup: first stu_emp_list, then (if not found) visitor_list
       final uidHex = result.uid.trim();
       Map<String, dynamic>? record =
           await DatabaseHelper.instance.getStuEmpListByCardNo(uidHex);
@@ -136,27 +139,58 @@ class ScannerController extends GetxController {
           record = await DatabaseHelper.instance.getStuEmpListByCardNo(decimal);
         }
       }
+
+      bool isVisitor = false;
+      if (record == null) {
+        // Try visitor list (same fallbacks: hex, uppercase hex, decimal)
+        Map<String, dynamic>? visitorRecord =
+            await DatabaseHelper.instance.getVisitorListByCardNo(uidHex);
+        if (visitorRecord == null && uidHex != uidHex.toUpperCase()) {
+          visitorRecord = await DatabaseHelper.instance.getVisitorListByCardNo(uidHex.toUpperCase());
+        }
+        if (visitorRecord == null) {
+          final decimal = hexUidToDecimal(result.uid);
+          if (decimal != null && decimal != result.uid) {
+            visitorRecord = await DatabaseHelper.instance.getVisitorListByCardNo(decimal);
+          }
+        }
+        if (visitorRecord != null && visitorRecord.isNotEmpty) {
+          record = visitorRecord;
+          isVisitor = true;
+        }
+      }
+
       final bool isValid = record != null &&
           record.isNotEmpty &&
           (record['id'] != null || record['card_no'] != null);
       final Map<String, dynamic>? recordToShow = isValid ? record : null;
-      _logger.d('[Scanner] step 4: lookup done — valid=$isValid');
+      _logger.d('[Scanner] step 4: lookup done — valid=$isValid, isVisitor=$isVisitor');
 
       // Save in database log (valid cards only)
       if (isValid) {
         final r = record;
         final now = DateTime.now().toIso8601String();
-        final logRow = <String, dynamic>{
-          'id': r['id'],
-          'card_no': r['card_no'],
-          'type': r['type'] ?? 'student',
-          'remarks': r['remarks'] ?? '',
-          'status': r['status'] ?? 'allowed',
-          'profile': r['profile'],
-          'created_at': now,
-        };
-        await DatabaseHelper.instance.insertStuEmpLog(logRow);
-        _logger.i('[Scanner] step 5: saved to stu_emp_logs');
+        if (isVisitor) {
+          final logRow = <String, dynamic>{
+            'card_no': r['card_no'],
+            'vis_card': r['vis_card'],
+            'created_at': now,
+          };
+          await DatabaseHelper.instance.insertVisitorLog(logRow);
+          _logger.i('[Scanner] step 5: saved to visitor_logs');
+        } else {
+          final logRow = <String, dynamic>{
+            'id': r['id'],
+            'card_no': r['card_no'],
+            'type': r['type'] ?? 'student',
+            'remarks': r['remarks'] ?? '',
+            'status': r['status'] ?? 'allowed',
+            'profile': r['profile'],
+            'created_at': now,
+          };
+          await DatabaseHelper.instance.insertStuEmpLog(logRow);
+          _logger.i('[Scanner] step 5: saved to stu_emp_logs');
+        }
       } else {
         _logger.d('[Scanner] step 5: no DB log (invalid/unknown card)');
       }
@@ -164,6 +198,7 @@ class ScannerController extends GetxController {
       _logger.d('[Scanner] step 6: updating UI (display valid/invalid)');
       lastScannedUid.value = result.uid;
       scannedRecord.value = recordToShow;
+      isVisitorResult.value = isVisitor;
       isScanning.value = false;
     } catch (e, st) {
       _logger.e('[Scanner] _startScanning error', error: e, stackTrace: st);
@@ -179,6 +214,7 @@ class ScannerController extends GetxController {
     scanError.value = null;
     lastScannedUid.value = null;
     scannedRecord.value = null;
+    isVisitorResult.value = false;
     _logState(note: 'cleared, starting new scan');
     _startScanning();
   }

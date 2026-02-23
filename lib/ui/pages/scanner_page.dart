@@ -40,8 +40,16 @@ class ScannerPage extends StatelessWidget {
             final record = controller.scannedRecord.value;
             final uid = controller.lastScannedUid.value;
             final error = controller.scanError.value;
+            final isVisitor = controller.isVisitorResult.value;
 
-            // Valid card: has a record with id or card_no (display info)
+            // Visitor card: found in visitor_list — show Visitor UI (card_no, vis_card)
+            if (isVisitor && record != null && record.isNotEmpty) {
+              return _VisitorScannedResultCard(
+                record: record,
+                onClearAndScanAgain: controller.clearAndScanAgain,
+              );
+            }
+            // Valid student/employee card: has a record with id or card_no
             final hasValidRecord = record != null &&
                 record.isNotEmpty &&
                 (record['id'] != null || record['card_no'] != null);
@@ -343,7 +351,118 @@ class _ScannedResultCard extends StatelessWidget {
   }
 }
 
-/// Shown when card was scanned but not found in stu_emp_list (Invalid Card).
+/// Result card when a card was found in visitor_list (Visitor: card_no, vis_card).
+class _VisitorScannedResultCard extends StatelessWidget {
+  const _VisitorScannedResultCard({
+    required this.record,
+    required this.onClearAndScanAgain,
+  });
+
+  final Map<String, dynamic> record;
+  final VoidCallback onClearAndScanAgain;
+
+  @override
+  Widget build(BuildContext context) {
+    final cardNo = record['card_no'] as String? ?? '—';
+    final visCard = record['vis_card'] as String? ?? '—';
+
+    return Column(
+      children: [
+        Obx(() {
+          final controller = Get.find<ScannerController>();
+          return Padding(
+            padding: const EdgeInsets.only(bottom: 24),
+            child: Center(
+              child: Text(
+                ScannerController.formatDateTime(controller.currentTime.value),
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w500,
+                  color: AppColors.title,
+                ),
+              ),
+            ),
+          );
+        }),
+        Expanded(
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: AppColors.primary, width: 3),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.08),
+                        blurRadius: 12,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Visitor',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.title,
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+                      Text(
+                        'Card No: $cardNo',
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w500,
+                          color: AppColors.title,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Vis Card: $visCard',
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w500,
+                          color: AppColors.title,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 32),
+                FilledButton.icon(
+                  onPressed: onClearAndScanAgain,
+                  icon: const Icon(Icons.refresh, size: 22),
+                  label: const Text('Clear and Scan again'),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 24,
+                      vertical: 14,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// Shown when card was scanned but not found in stu_emp_list or visitor_list (Invalid Card).
 class _CardNotFoundState extends StatelessWidget {
   const _CardNotFoundState({
     required this.displayNumber,

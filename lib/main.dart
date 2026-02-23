@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:get/get.dart';
 import 'package:logger/logger.dart';
 import 'package:media_store_plus/media_store_plus.dart';
@@ -28,6 +29,9 @@ const bool _kSeedDatabaseOnStart = false;
 void main() async {
   logger.i('🚀 App starting...');
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Load environment variables from .env
+  await dotenv.load(fileName: '.env');
 
   // Initialize GetStorage
   logger.d('💾 Initializing storage...');

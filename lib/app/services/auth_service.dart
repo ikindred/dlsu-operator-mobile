@@ -1,5 +1,6 @@
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:logger/logger.dart';
 
 class AuthService {
@@ -14,8 +15,7 @@ class AuthService {
     ),
   );
   
-  // TODO: Replace with actual API endpoint
-  static const String _baseUrl = 'https://api.example.com';
+  String get _baseUrl => dotenv.env['BASE_URL'] ?? 'http://139.135.147.181:10580';
 
   /// Login with email and password
   /// Returns token on success, throws exception on failure

@@ -1,6 +1,7 @@
 import 'package:get/get.dart';
 import 'package:logger/logger.dart';
 import '../database/database_helper.dart';
+import 'home_controller.dart';
 
 /// Controller for the Visitor (scanned visitors / visitor_logs) list.
 class VisitorController extends GetxController {
@@ -35,10 +36,12 @@ class VisitorController extends GetxController {
     await loadLogs();
   }
 
-  /// Download visitor logs (e.g. export or sync). Override or call API as needed.
+  /// Export visitor logs to CSV (same as Home "Visitor Logs" export). Saves to Downloads on Android or share sheet on iOS.
   Future<void> download() async {
-    _logger.i('📥 Download visitor logs requested');
-    // TODO: implement download/export of logs
-    await loadLogs();
+    _logger.i('📥 Export visitor logs (CSV) requested');
+    if (Get.isRegistered<HomeController>()) {
+      await Get.find<HomeController>().downloadVisitorLogs();
+      await refresh();
+    }
   }
 }
