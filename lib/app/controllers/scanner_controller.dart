@@ -22,8 +22,12 @@ class ScannerController extends GetxController {
   );
 
   final Rx<String?> lastScannedUid = Rx<String?>(null);
+
   /// Record from stu_emp_list or visitor_list after lookup by card_no; null if not found or not yet scanned.
-  final Rx<Map<String, dynamic>?> scannedRecord = Rx<Map<String, dynamic>?>(null);
+  final Rx<Map<String, dynamic>?> scannedRecord = Rx<Map<String, dynamic>?>(
+    null,
+  );
+
   /// True when scannedRecord is from visitor_list (so UI shows Visitor card instead of Student/Employee).
   final RxBool isVisitorResult = false.obs;
   final RxBool isScanning = false.obs;
@@ -65,7 +69,8 @@ class ScannerController extends GetxController {
     final scanning = isScanning.value ? 'ON' : 'OFF';
     final uid = lastScannedUid.value;
     final record = scannedRecord.value;
-    final hasValid = record != null &&
+    final hasValid =
+        record != null &&
         record.isNotEmpty &&
         (record['id'] != null || record['card_no'] != null);
     final card = uid != null && uid.isNotEmpty
@@ -74,12 +79,27 @@ class ScannerController extends GetxController {
     final valid = uid != null && uid.isNotEmpty
         ? (hasValid ? 'valid=yes' : 'valid=no')
         : 'valid=n/a';
-    _logger.i('[Scanner] ► state: scanning=$scanning, card=$card, $valid${note != null ? ' ($note)' : ''}');
+    _logger.i(
+      '[Scanner] ► state: scanning=$scanning, card=$card, $valid${note != null ? ' ($note)' : ''}',
+    );
   }
 
   /// Format: "Jan 2 2024 - 09:25:48 AM"
   static String formatDateTime(DateTime dt) {
-    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const months = [
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
+    ];
     final h = dt.hour;
     final am = h < 12;
     final h12 = h == 0 ? 12 : (h > 12 ? h - 12 : h);
@@ -94,7 +114,9 @@ class ScannerController extends GetxController {
       _logger.w('[Scanner] _startScanning ignored — already scanning');
       return;
     }
-    _logger.i('[Scanner] _startScanning — step 0: clearing state, isScanning=true');
+    _logger.i(
+      '[Scanner] _startScanning — step 0: clearing state, isScanning=true',
+    );
     lastScannedUid.value = null;
     scannedRecord.value = null;
     isVisitorResult.value = false;
@@ -106,7 +128,8 @@ class ScannerController extends GetxController {
       _logger.d('[Scanner] step 1: checking NFC availability');
       final available = await _nfc.isAvailable;
       if (!available) {
-        scanError.value = 'NFC is off or not supported. Turn on NFC in Settings.';
+        scanError.value =
+            'NFC is off or not supported. Turn on NFC in Settings.';
         _logger.w('[Scanner] step 1 failed: NFC not available');
         return;
       }
@@ -115,23 +138,33 @@ class ScannerController extends GetxController {
       _logger.d('[Scanner] step 2: waiting for tag (readTag)');
       final result = await _nfc.readTag();
       if (result == null || result.uid.isEmpty) {
-        scanError.value = 'No card read. Hold the card steady on the back of the device.';
-        _logger.d('[Scanner] step 2: readTag returned null or empty — no card / timeout');
+        scanError.value =
+            'No card read. Hold the card steady on the back of the device.';
+        _logger.d(
+          '[Scanner] step 2: readTag returned null or empty — no card / timeout',
+        );
         return;
       }
 
-      _logger.i('[Scanner] step 2 ok: card read UID=${result.uid}');
+      final uidHexRaw = result.uid.trim();
+      final uidHexUpper = uidHexRaw.toUpperCase();
+      final uidDecimal = hexUidToDecimal(uidHexUpper);
+
+      _logger.i('read_card_hex: $uidHexUpper');
+      _logger.i('read_card_decimal: ${uidDecimal ?? 'n/a'}');
 
       _logger.d('[Scanner] step 3: stopping scanner (stopSession)');
       await _nfc.stopSession();
       _logger.d('[Scanner] step 3 ok: scanner stopped');
 
       // 4. Lookup: first stu_emp_list, then (if not found) visitor_list
-      final uidHex = result.uid.trim();
-      Map<String, dynamic>? record =
-          await DatabaseHelper.instance.getStuEmpListByCardNo(uidHex);
+      final uidHex = uidHexRaw;
+      Map<String, dynamic>? record = await DatabaseHelper.instance
+          .getStuEmpListByCardNo(uidHex);
       if (record == null && uidHex != uidHex.toUpperCase()) {
-        record = await DatabaseHelper.instance.getStuEmpListByCardNo(uidHex.toUpperCase());
+        record = await DatabaseHelper.instance.getStuEmpListByCardNo(
+          uidHex.toUpperCase(),
+        );
       }
       if (record == null) {
         final decimal = hexUidToDecimal(result.uid);
@@ -143,15 +176,18 @@ class ScannerController extends GetxController {
       bool isVisitor = false;
       if (record == null) {
         // Try visitor list (same fallbacks: hex, uppercase hex, decimal)
-        Map<String, dynamic>? visitorRecord =
-            await DatabaseHelper.instance.getVisitorListByCardNo(uidHex);
+        Map<String, dynamic>? visitorRecord = await DatabaseHelper.instance
+            .getVisitorListByCardNo(uidHex);
         if (visitorRecord == null && uidHex != uidHex.toUpperCase()) {
-          visitorRecord = await DatabaseHelper.instance.getVisitorListByCardNo(uidHex.toUpperCase());
+          visitorRecord = await DatabaseHelper.instance.getVisitorListByCardNo(
+            uidHex.toUpperCase(),
+          );
         }
         if (visitorRecord == null) {
           final decimal = hexUidToDecimal(result.uid);
           if (decimal != null && decimal != result.uid) {
-            visitorRecord = await DatabaseHelper.instance.getVisitorListByCardNo(decimal);
+            visitorRecord = await DatabaseHelper.instance
+                .getVisitorListByCardNo(decimal);
           }
         }
         if (visitorRecord != null && visitorRecord.isNotEmpty) {
@@ -160,11 +196,14 @@ class ScannerController extends GetxController {
         }
       }
 
-      final bool isValid = record != null &&
+      final bool isValid =
+          record != null &&
           record.isNotEmpty &&
           (record['id'] != null || record['card_no'] != null);
       final Map<String, dynamic>? recordToShow = isValid ? record : null;
-      _logger.d('[Scanner] step 4: lookup done — valid=$isValid, isVisitor=$isVisitor');
+      _logger.d(
+        '[Scanner] step 4: lookup done — valid=$isValid, isVisitor=$isVisitor',
+      );
 
       // Save in database log (valid cards only)
       if (isValid) {
@@ -210,7 +249,9 @@ class ScannerController extends GetxController {
   }
 
   void clearAndScanAgain() {
-    _logger.d('[Scanner] clearAndScanAgain — clearing result, starting new scan');
+    _logger.d(
+      '[Scanner] clearAndScanAgain — clearing result, starting new scan',
+    );
     scanError.value = null;
     lastScannedUid.value = null;
     scannedRecord.value = null;
@@ -228,7 +269,9 @@ class ScannerController extends GetxController {
   }
 
   void startScanning() {
-    _logger.d('[Scanner] startScanning() called (from MainController or Clear and Scan again)');
+    _logger.d(
+      '[Scanner] startScanning() called (from MainController or Clear and Scan again)',
+    );
     _startScanning();
   }
 
