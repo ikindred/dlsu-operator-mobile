@@ -36,29 +36,32 @@ class SplashController extends GetxController {
 
     if (!_storageService.hasCachedAccount()) {
       // No cached account -> go to login
-      _logger.i('📭 No cached account found, navigating to home');
+      _logger.i('📭 No cached account found, navigating to login');
       isLoading.value = false;
-      //todo: uncomment this when login is implemented
-      // Get.offAllNamed(AppRoutes.LOGIN);
-      Get.offAllNamed(AppRoutes.HOME);
+      Get.offAllNamed(AppRoutes.LOGIN);
       return;
     }
 
     // Has cached account -> call login API
     _logger.i('✅ Cached account found, attempting auto-login');
     try {
-      final email = cachedAccount['email']!;
+      final username = (cachedAccount['username'] ?? cachedAccount['email'])!;
       final password = cachedAccount['password']!;
 
       _logger.d('🔐 Attempting login with cached credentials');
-      final token = await _authService.login(email: email, password: password);
+      final result = await _authService.login(
+        username: username,
+        password: password,
+      );
 
       _logger.i('✅ Auto-login successful, updating token');
       // Update token in storage
       await _storageService.saveAccount(
-        email: email,
+        username: username,
+        email: result.email.isNotEmpty ? result.email : cachedAccount['email'],
+        name: result.username.isNotEmpty ? result.username : cachedAccount['name'],
         password: password,
-        token: token,
+        token: result.accessToken,
       );
 
       // Navigate to home
@@ -74,10 +77,8 @@ class SplashController extends GetxController {
       );
       await _storageService.clearAccount();
       isLoading.value = false;
-      //todo: uncomment this when login is implemented
-      // Get.offAllNamed(AppRoutes.LOGIN);
-      _logger.i('🏠 Navigating to home (fallback)');
-      Get.offAllNamed(AppRoutes.HOME);
+      _logger.i('🔐 Navigating to login (auto-login failed)');
+      Get.offAllNamed(AppRoutes.LOGIN);
     }
   }
 }

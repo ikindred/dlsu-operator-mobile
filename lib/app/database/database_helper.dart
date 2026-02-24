@@ -120,6 +120,39 @@ class DatabaseHelper {
     );
   }
 
+  Future<void> clearStuEmpList() async {
+    final database = await db;
+    await database.delete(tableStuEmpList);
+  }
+
+  Future<void> batchInsertStuEmpList(List<Map<String, dynamic>> rows) async {
+    if (rows.isEmpty) return;
+    final database = await db;
+    await database.transaction((txn) async {
+      final batch = txn.batch();
+      for (final row in rows) {
+        final id = row['id']?.toString() ?? '';
+        if (id.trim().isEmpty) continue;
+        final data = <String, dynamic>{
+          'id': id,
+          'card_no': row['card_no']?.toString(),
+          'type': row['type']?.toString() ?? 'student',
+          'remarks': row['remarks'],
+          'status': row['status'],
+          'profile': row['profile'],
+          'created_at': row['created_at'],
+          'updated_at': row['updated_at'],
+        };
+        batch.insert(
+          tableStuEmpList,
+          data,
+          conflictAlgorithm: ConflictAlgorithm.replace,
+        );
+      }
+      await batch.commit(noResult: true);
+    });
+  }
+
   Future<List<Map<String, dynamic>>> getAllStuEmpList() async {
     final database = await db;
     return database.query(tableStuEmpList, orderBy: 'created_at DESC');
@@ -215,6 +248,11 @@ class DatabaseHelper {
   Future<List<Map<String, dynamic>>> getAllStuEmpLogs() async {
     final database = await db;
     return database.query(tableStuEmpLogs, orderBy: 'created_at DESC');
+  }
+
+  Future<void> clearStuEmpLogs() async {
+    final database = await db;
+    await database.delete(tableStuEmpLogs);
   }
 
   Future<int> getStuEmpLogsCount() async {

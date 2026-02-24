@@ -43,19 +43,19 @@ class LoginController extends GetxController {
     _logger.d('📤 Attempting login for employee: ${employeeId.value}');
 
     try {
-      // Using employeeId as email for API (update AuthService if API uses different field)
-      final token = await _authService.login(
-        email: employeeId.value,
+      final result = await _authService.login(
+        username: employeeId.value,
         password: password.value,
       );
 
       _logger.i('✅ Login successful, saving account data');
 
-      // Save account data (using employeeId as email identifier)
       await _storageService.saveAccount(
-        email: employeeId.value,
+        username: employeeId.value,
+        email: result.email.isNotEmpty ? result.email : null,
+        name: result.username.isNotEmpty ? result.username : employeeId.value,
         password: password.value,
-        token: token,
+        token: result.accessToken,
       );
 
       // Navigate to home

@@ -1,6 +1,7 @@
 import 'package:get/get.dart';
 import 'package:logger/logger.dart';
 import '../database/database_helper.dart';
+import '../services/report_service.dart';
 
 /// Controller for the Student (scanned students / stu_emp_logs) list.
 class StudentController extends GetxController {
@@ -15,6 +16,7 @@ class StudentController extends GetxController {
     ),
   );
   final RxList<Map<String, dynamic>> logs = <Map<String, dynamic>>[].obs;
+  final RxBool isUploading = false.obs;
 
   @override
   void onReady() {
@@ -37,9 +39,57 @@ class StudentController extends GetxController {
 
   /// Upload scanned student logs (e.g. to server). Override or call API as needed.
   Future<void> upload() async {
+    if (isUploading.value) return;
+    isUploading.value = true;
     _logger.i('📤 Upload student logs requested');
-    // TODO: implement upload of logs
-    await loadLogs();
+
+    try {
+      final items = List<Map<String, dynamic>>.from(logs);
+      if (items.isEmpty) {
+        Get.snackbar(
+          'No logs',
+          'No student logs to upload.',
+          snackPosition: SnackPosition.BOTTOM,
+        );
+        return;
+      }
+
+      final result = await ReportService().uploadStuEmpLogs(items);
+      if (!result.ok) {
+        if (result.statusCode == 401) {
+          Get.snackbar(
+            'Session expired',
+            'Please login again to upload logs.',
+            snackPosition: SnackPosition.BOTTOM,
+          );
+        } else {
+          Get.snackbar(
+            'Upload failed',
+            result.error ?? 'Unable to upload student logs.',
+            snackPosition: SnackPosition.BOTTOM,
+          );
+        }
+        return;
+      }
+
+      await DatabaseHelper.instance.clearStuEmpLogs();
+      await loadLogs();
+      Get.snackbar(
+        'Upload complete',
+        'Uploaded ${result.sentCount} logs.',
+        snackPosition: SnackPosition.BOTTOM,
+      );
+      _logger.i('✅ Uploaded ${result.sentCount} student logs, local logs cleared');
+    } catch (e, st) {
+      _logger.e('❌ StudentController.upload error', error: e, stackTrace: st);
+      Get.snackbar(
+        'Upload error',
+        'Upload failed: $e',
+        snackPosition: SnackPosition.BOTTOM,
+      );
+    } finally {
+      isUploading.value = false;
+    }
   }
 
   /// Display status for a log row: "Allowed", "With Remarks", or "Not Allowed".

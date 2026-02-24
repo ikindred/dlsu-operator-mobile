@@ -16,17 +16,23 @@ class StorageService {
 
   // Keys
   static const String _keyEmail = 'cached_email';
+  static const String _keyUsername = 'cached_username';
+  static const String _keyName = 'cached_name';
   static const String _keyPassword = 'cached_password';
   static const String _keyToken = 'cached_token';
 
   // Save account data
   Future<void> saveAccount({
-    required String email,
+    required String username,
+    String? email,
+    String? name,
     required String password,
     required String token,
   }) async {
-    _logger.d('💾 Saving account data for email: $email');
-    await _storage.write(_keyEmail, email);
+    _logger.d('💾 Saving account data for username: $username');
+    await _storage.write(_keyUsername, username);
+    await _storage.write(_keyEmail, (email ?? '').trim());
+    await _storage.write(_keyName, (name ?? '').trim());
     await _storage.write(_keyPassword, password);
     await _storage.write(_keyToken, token);
     _logger.i('✅ Account data saved successfully');
@@ -36,11 +42,13 @@ class StorageService {
   Map<String, String?> getCachedAccount() {
     _logger.d('📖 Reading cached account data');
     final account = <String, String?>{
+      'username': _storage.read(_keyUsername) as String?,
+      'name': _storage.read(_keyName) as String?,
       'email': _storage.read(_keyEmail) as String?,
       'password': _storage.read(_keyPassword) as String?,
       'token': _storage.read(_keyToken) as String?,
     };
-    final hasAccount = account['email'] != null;
+    final hasAccount = (account['username'] ?? account['email']) != null;
     _logger.d('${hasAccount ? '✅' : '📭'} Cached account ${hasAccount ? 'found' : 'not found'}');
     return account;
   }
@@ -48,7 +56,8 @@ class StorageService {
   // Check if account exists
   bool hasCachedAccount() {
     final account = getCachedAccount();
-    final exists = account['email'] != null &&
+    final loginId = account['username'] ?? account['email'];
+    final exists = loginId != null &&
         account['password'] != null &&
         account['token'] != null;
     _logger.d('${exists ? '✅' : '📭'} Account cache check: ${exists ? 'exists' : 'does not exist'}');
@@ -59,6 +68,8 @@ class StorageService {
   Future<void> clearAccount() async {
     _logger.d('🗑️ Clearing cached account data');
     await _storage.remove(_keyEmail);
+    await _storage.remove(_keyUsername);
+    await _storage.remove(_keyName);
     await _storage.remove(_keyPassword);
     await _storage.remove(_keyToken);
     _logger.i('✅ Account data cleared');

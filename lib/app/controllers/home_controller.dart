@@ -9,12 +9,15 @@ import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:media_store_plus/media_store_plus.dart';
 import '../services/storage_service.dart';
+import '../services/sync_service.dart';
+import '../services/report_service.dart';
 import '../routes/app_routes.dart';
 import '../database/database_helper.dart';
 import 'scanner_controller.dart';
 
 class HomeController extends GetxController {
   final StorageService _storageService = StorageService();
+  final SyncService _syncService = SyncService();
   final Logger _logger = Logger(
     printer: PrettyPrinter(
       methodCount: 0,
@@ -38,6 +41,9 @@ class HomeController extends GetxController {
   final RxString lastSync = 'Jan 2 2024 - 09:25:48 AM'.obs;
   final RxString lastUpload = 'Jan 2 2024 - 09:25:48 AM'.obs;
   final RxString lastUpdate = 'Jan 2 2024 - 09:25:48 AM'.obs;
+
+  final RxBool isSyncingStudents = false.obs;
+  final RxBool isUploadingStudents = false.obs;
 
   @override
   void onInit() {
@@ -77,13 +83,109 @@ class HomeController extends GetxController {
   }
 
   Future<void> refreshStudents() async {
-    // TODO: call API to sync students
-    await loadDashboardCounts();
+    if (isSyncingStudents.value) return;
+    isSyncingStudents.value = true;
+    _logger.i('🔄 Starting student sync...');
+
+    try {
+      final result = await _syncService.syncStudents();
+
+      if (!result.ok) {
+        final code = result.statusCode;
+        if (code == 401) {
+          Get.snackbar(
+            'Session expired',
+            'Please login again to sync students.',
+            snackPosition: SnackPosition.BOTTOM,
+          );
+        } else {
+          Get.snackbar(
+            'Sync failed',
+            result.error ?? 'Unable to sync students.',
+            snackPosition: SnackPosition.BOTTOM,
+          );
+        }
+        return;
+      }
+
+      await DatabaseHelper.instance.clearStuEmpList();
+      await DatabaseHelper.instance.batchInsertStuEmpList(result.rows);
+
+      lastSync.value = ScannerController.formatDateTime(DateTime.now());
+      await loadDashboardCounts();
+
+      Get.snackbar(
+        'Sync complete',
+        'Downloaded ${result.rows.length} students.',
+        snackPosition: SnackPosition.BOTTOM,
+      );
+      _logger.i('✅ Student sync complete: ${result.rows.length} rows saved');
+    } catch (e, st) {
+      _logger.e('❌ refreshStudents error', error: e, stackTrace: st);
+      Get.snackbar(
+        'Sync error',
+        'Sync failed: $e',
+        snackPosition: SnackPosition.BOTTOM,
+      );
+    } finally {
+      isSyncingStudents.value = false;
+    }
   }
 
   Future<void> uploadStudents() async {
-    // TODO: call API to upload students
-    await loadDashboardCounts();
+    if (isUploadingStudents.value) return;
+    isUploadingStudents.value = true;
+    _logger.i('📤 Starting upload of student logs...');
+
+    try {
+      final logs = await DatabaseHelper.instance.getAllStuEmpLogs();
+      if (logs.isEmpty) {
+        Get.snackbar(
+          'No logs',
+          'No student logs to upload.',
+          snackPosition: SnackPosition.BOTTOM,
+        );
+        return;
+      }
+
+      final result = await ReportService().uploadStuEmpLogs(logs);
+      if (!result.ok) {
+        if (result.statusCode == 401) {
+          Get.snackbar(
+            'Session expired',
+            'Please login again to upload logs.',
+            snackPosition: SnackPosition.BOTTOM,
+          );
+        } else {
+          Get.snackbar(
+            'Upload failed',
+            result.error ?? 'Unable to upload student logs.',
+            snackPosition: SnackPosition.BOTTOM,
+          );
+        }
+        return;
+      }
+
+      await DatabaseHelper.instance.clearStuEmpLogs();
+      lastUpload.value = ScannerController.formatDateTime(DateTime.now());
+      await loadDashboardCounts();
+
+      Get.snackbar(
+        'Upload complete',
+        'Uploaded ${result.sentCount} logs.',
+        snackPosition: SnackPosition.BOTTOM,
+      );
+      _logger.i('✅ Uploaded ${result.sentCount} student logs, local logs cleared');
+    } catch (e, st) {
+      _logger.e('❌ uploadStudents error', error: e, stackTrace: st);
+      Get.snackbar(
+        'Upload error',
+        'Upload failed: $e',
+        snackPosition: SnackPosition.BOTTOM,
+      );
+    } finally {
+      isUploadingStudents.value = false;
+    }
   }
 
   Future<void> uploadVisitors() async {
