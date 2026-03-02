@@ -49,6 +49,7 @@ class DatabaseHelper {
         _id INTEGER PRIMARY KEY AUTOINCREMENT,
         id TEXT UNIQUE,
         card_no TEXT,
+        name TEXT,
         type TEXT,
         remarks TEXT,
         status TEXT,
@@ -63,7 +64,10 @@ class DatabaseHelper {
         _id INTEGER PRIMARY KEY AUTOINCREMENT,
         id TEXT,
         card_no TEXT,
+        name TEXT,
         type TEXT,
+        report_type TEXT,
+        device TEXT,
         remarks TEXT,
         status TEXT,
         profile TEXT,
@@ -106,6 +110,7 @@ class DatabaseHelper {
     final data = <String, dynamic>{
       'id': id,
       'card_no': row['card_no']?.toString(),
+      'name': row['name']?.toString(),
       'type': row['type']?.toString() ?? 'student',
       'remarks': row['remarks'],
       'status': row['status'],
@@ -136,6 +141,7 @@ class DatabaseHelper {
         final data = <String, dynamic>{
           'id': id,
           'card_no': row['card_no']?.toString(),
+          'name': row['name']?.toString(),
           'type': row['type']?.toString() ?? 'student',
           'remarks': row['remarks'],
           'status': row['status'],
@@ -242,6 +248,8 @@ class DatabaseHelper {
     final database = await db;
     final data = Map<String, dynamic>.from(row);
     data.putIfAbsent('type', () => 'student');
+    data.putIfAbsent('report_type', () => '1');
+    data.putIfAbsent('device', () => 'Mobile App');
     return database.insert(tableStuEmpLogs, data);
   }
 

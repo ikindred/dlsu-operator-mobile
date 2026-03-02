@@ -221,7 +221,10 @@ class ScannerController extends GetxController {
           final logRow = <String, dynamic>{
             'id': r['id'],
             'card_no': r['card_no'],
+            'name': r['name'],
             'type': r['type'] ?? 'student',
+            'report_type': '1',
+            'device': 'Mobile App',
             'remarks': r['remarks'] ?? '',
             'status': r['status'] ?? 'allowed',
             'profile': r['profile'],

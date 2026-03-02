@@ -134,11 +134,15 @@ class SyncService {
                 ? 'not_allowed'
                 : 'not_allowed';
 
+        final group = (s['group'] ?? '').toString().trim().toUpperCase();
+        final type = group == 'EMPLOYEE' ? 'employee' : 'student';
+
         rows.add({
           // Option A mapping: keep existing local column names
           'id': idNumber,
           'card_no': cardNo,
-          'type': 'student',
+          'name': s['Name']?.toString(),
+          'type': type,
           'remarks': s['Remarks']?.toString(),
           'status': status,
           'profile': s['Photo']?.toString(),

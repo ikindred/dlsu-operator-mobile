@@ -69,17 +69,20 @@ class ReportService {
       final createdAt = (log['created_at'] ?? '').toString().trim();
       if (id.isEmpty || createdAt.isEmpty) continue;
 
+      final name = (log['name'] ?? '').toString().trim();
       final remarks = (log['remarks'] ?? '').toString();
       final status = _mapStatusToApi(log['status']?.toString(), remarks);
+      final reportType = (log['report_type'] ?? '1').toString().trim();
+      final device = (log['device'] ?? 'Mobile App').toString().trim();
 
       payload.add({
         'datetime': createdAt,
-        'type': '1',
+        'type': reportType.isEmpty ? '1' : reportType,
         'user_id': id,
-        // ! TODO: include student name once available in stu_emp_logs
+        'name': name,
         'remarks': remarks,
         'status': status,
-        'device': 'Mobile App',
+        'device': device.isEmpty ? 'Mobile App' : device,
       });
     }
 
