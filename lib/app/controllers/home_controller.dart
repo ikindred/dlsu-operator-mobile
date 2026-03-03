@@ -370,6 +370,15 @@ class HomeController extends GetxController {
     }
   }
 
+  Future<void> _fallbackShareVisitorLogs({required File file, required String fileName}) async {
+    await Share.shareXFiles([XFile(file.path)], subject: 'Visitor logs export', text: fileName);
+    Get.snackbar(
+      'Export ready',
+      'Use the share menu to save the file (e.g. to Downloads or Files).',
+      snackPosition: SnackPosition.BOTTOM,
+    );
+  }
+
   Future<void> downloadVisitorLogs() async {
     try {
       _logger.i('📥 Exporting visitor logs to CSV...');
@@ -417,26 +426,27 @@ class HomeController extends GetxController {
       _logger.i('✅ Visitor logs prepared: ${file.path}');
 
       if (Platform.isAndroid) {
-        // Save directly to device Downloads folder (visible in Files/Downloads app)
-        final saveInfo = await MediaStore().saveFile(
-          tempFilePath: file.path,
-          dirType: DirType.download,
-          dirName: DirName.download,
-          relativePath: FilePath.root,
-        );
-        if (saveInfo != null) {
-          Get.snackbar(
-            'Saved to Downloads',
-            '$fileName is in your Download folder.',
-            snackPosition: SnackPosition.BOTTOM,
+        // Save to Downloads when supported (Android 10+). On Android 9, MediaStore Downloads
+        // is not available — fall back to share sheet so user can save manually.
+        try {
+          final saveInfo = await MediaStore().saveFile(
+            tempFilePath: file.path,
+            dirType: DirType.download,
+            dirName: DirName.download,
+            relativePath: FilePath.root,
           );
-        } else {
-          Get.snackbar(
-            'Export ready',
-            'Use the share menu to save to Downloads.',
-            snackPosition: SnackPosition.BOTTOM,
-          );
-          await Share.shareXFiles([XFile(file.path)], subject: 'Visitor logs export', text: fileName);
+          if (saveInfo != null) {
+            Get.snackbar(
+              'Saved to Downloads',
+              '$fileName is in your Download folder.',
+              snackPosition: SnackPosition.BOTTOM,
+            );
+          } else {
+            await _fallbackShareVisitorLogs(file: file, fileName: fileName);
+          }
+        } catch (e) {
+          _logger.w('MediaStore save failed (e.g. Android 9), using share: $e');
+          await _fallbackShareVisitorLogs(file: file, fileName: fileName);
         }
       } else {
         // iOS / other: use share sheet so user can save to Files
