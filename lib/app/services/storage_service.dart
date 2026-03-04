@@ -20,6 +20,16 @@ class StorageService {
   static const String _keyName = 'cached_name';
   static const String _keyPassword = 'cached_password';
   static const String _keyToken = 'cached_token';
+  static const String _keyOfflineMode = 'offline_mode';
+
+  /// Whether the user chose to use the app without signing in (no sync/upload).
+  bool isOfflineMode() {
+    return _storage.read(_keyOfflineMode) == true;
+  }
+
+  Future<void> setOfflineMode(bool value) async {
+    await _storage.write(_keyOfflineMode, value);
+  }
 
   // Save account data
   Future<void> saveAccount({
@@ -35,6 +45,7 @@ class StorageService {
     await _storage.write(_keyName, (name ?? '').trim());
     await _storage.write(_keyPassword, password);
     await _storage.write(_keyToken, token);
+    await setOfflineMode(false); // User is signed in, no longer offline mode
     _logger.i('✅ Account data saved successfully');
   }
 
@@ -72,6 +83,7 @@ class StorageService {
     await _storage.remove(_keyName);
     await _storage.remove(_keyPassword);
     await _storage.remove(_keyToken);
+    await setOfflineMode(false);
     _logger.i('✅ Account data cleared');
   }
 

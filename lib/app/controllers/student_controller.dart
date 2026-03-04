@@ -2,6 +2,8 @@ import 'package:get/get.dart';
 import 'package:logger/logger.dart';
 import '../database/database_helper.dart';
 import '../services/report_service.dart';
+import '../services/storage_service.dart';
+import '../utils/offline_dialog.dart';
 
 /// Controller for the Student (scanned students / stu_emp_logs) list.
 class StudentController extends GetxController {
@@ -40,6 +42,10 @@ class StudentController extends GetxController {
   /// Upload scanned student logs (e.g. to server). Override or call API as needed.
   Future<void> upload() async {
     if (isUploading.value) return;
+    if (StorageService().isOfflineMode()) {
+      showOfflineLoginRequiredDialog('upload student logs');
+      return;
+    }
     isUploading.value = true;
     _logger.i('📤 Upload student logs requested');
 

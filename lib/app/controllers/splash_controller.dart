@@ -35,6 +35,13 @@ class SplashController extends GetxController {
     final cachedAccount = _storageService.getCachedAccount();
 
     if (!_storageService.hasCachedAccount()) {
+      if (_storageService.isOfflineMode()) {
+        // Offline mode -> go to home (guest)
+        _logger.i('📴 Offline mode, navigating to home');
+        isLoading.value = false;
+        Get.offAllNamed(AppRoutes.HOME);
+        return;
+      }
       // No cached account -> go to login
       _logger.i('📭 No cached account found, navigating to login');
       isLoading.value = false;

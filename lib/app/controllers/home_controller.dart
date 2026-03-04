@@ -13,6 +13,7 @@ import '../services/sync_service.dart';
 import '../services/report_service.dart';
 import '../routes/app_routes.dart';
 import '../database/database_helper.dart';
+import '../utils/offline_dialog.dart';
 import 'scanner_controller.dart';
 
 class HomeController extends GetxController {
@@ -66,7 +67,13 @@ class HomeController extends GetxController {
         .getVisitorLogsCount();
   }
 
+  bool get isOfflineMode => _storageService.isOfflineMode();
+
   void _loadUserInfo() {
+    if (_storageService.isOfflineMode()) {
+      displayName.value = 'Guest';
+      return;
+    }
     final account = _storageService.getCachedAccount();
     userEmail.value = account['email'] ?? '';
     // Use name from account if available, else derive from email or default
@@ -84,6 +91,10 @@ class HomeController extends GetxController {
 
   Future<void> refreshStudents() async {
     if (isSyncingStudents.value) return;
+    if (_storageService.isOfflineMode()) {
+      showOfflineLoginRequiredDialog('sync students');
+      return;
+    }
     isSyncingStudents.value = true;
     _logger.i('🔄 Starting student sync...');
 
@@ -134,6 +145,10 @@ class HomeController extends GetxController {
 
   Future<void> uploadStudents() async {
     if (isUploadingStudents.value) return;
+    if (_storageService.isOfflineMode()) {
+      showOfflineLoginRequiredDialog('upload student logs');
+      return;
+    }
     isUploadingStudents.value = true;
     _logger.i('📤 Starting upload of student logs...');
 

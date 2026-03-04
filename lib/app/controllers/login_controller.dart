@@ -68,4 +68,11 @@ class LoginController extends GetxController {
       errorMessage.value = 'Login failed: ${e.toString()}';
     }
   }
+
+  /// Enter app in offline mode (no account). Sync and upload will require login.
+  Future<void> enterOfflineMode() async {
+    _logger.i('📴 Entering offline mode');
+    await _storageService.setOfflineMode(true);
+    Get.offAllNamed(AppRoutes.HOME);
+  }
 }
