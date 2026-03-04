@@ -45,4 +45,5 @@ class AppSvgIcons {
   static const String download = '$_base/fi-br-download.svg';
   static const String scan = '$_base/scan.svg';
   static const String crossCircle = '$_base/fi-rr-cross-circle.svg';
+  static const String trash = '$_base/fi-br-trash.svg';
 }

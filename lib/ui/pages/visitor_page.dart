@@ -21,6 +21,44 @@ String _formatVisitorCreatedAt(String? createdAt) {
   }
 }
 
+Future<void> _showClearLogsConfirmation(
+  BuildContext context,
+  VisitorController controller,
+) async {
+  final confirmed = await Get.dialog<bool>(
+    AlertDialog(
+      title: const Text('Clear visitor logs'),
+      content: const Text(
+        'Are you sure you want to clear all visitor logs? This action cannot be undone.',
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Get.back(result: false),
+          child: const Text('Cancel'),
+        ),
+        TextButton(
+          onPressed: () => Get.back(result: true),
+          child: Text(
+            'Clear',
+            style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold),
+          ),
+        ),
+      ],
+    ),
+    barrierDismissible: false,
+  );
+  if (confirmed == true) {
+    await controller.clearLogs();
+    if (context.mounted) {
+      Get.snackbar(
+        'Visitor logs cleared',
+        'All visitor log entries have been removed.',
+        snackPosition: SnackPosition.BOTTOM,
+      );
+    }
+  }
+}
+
 class VisitorPage extends StatelessWidget {
   const VisitorPage({super.key});
 
@@ -50,6 +88,15 @@ class VisitorPage extends StatelessWidget {
                     ),
                   ),
                   const Spacer(),
+                  IconButton(
+                    onPressed: () => _showClearLogsConfirmation(context, controller),
+                    icon: const SvgIcon(
+                      AppSvgIcons.trash,
+                      size: 24,
+                      color: AppColors.primary,
+                    ),
+                    tooltip: 'Clear logs',
+                  ),
                   IconButton(
                     onPressed: controller.download,
                     icon: const SvgIcon(

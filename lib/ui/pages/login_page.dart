@@ -14,11 +14,12 @@ class LoginPage extends StatelessWidget {
 
     return Scaffold(
       backgroundColor: Colors.white,
-      body: SizedBox(
-        width: double.infinity,
-        height: screenHeight,
-        child: Stack(
-          children: [
+      body: SafeArea(
+        child: SizedBox(
+          width: double.infinity,
+          height: screenHeight,
+          child: Stack(
+            children: [
             // Green Header Section with Wave Curve
             ClipPath(
               child: Container(
@@ -276,7 +277,8 @@ class LoginPage extends StatelessWidget {
                 ),
               ),
             ),
-          ],
+            ],
+          ),
         ),
       ),
     );

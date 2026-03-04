@@ -456,4 +456,10 @@ class DatabaseHelper {
       orderBy: 'created_at DESC',
     );
   }
+
+  /// Clear all visitor logs.
+  Future<void> clearVisitorLogs() async {
+    final database = await db;
+    await database.delete(tableVisitorLogs);
+  }
 }

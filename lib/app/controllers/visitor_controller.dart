@@ -44,4 +44,12 @@ class VisitorController extends GetxController {
       await refresh();
     }
   }
+
+  /// Clear all visitor logs from the database and refresh the list.
+  Future<void> clearLogs() async {
+    _logger.i('🗑️ Clearing visitor logs...');
+    await DatabaseHelper.instance.clearVisitorLogs();
+    await loadLogs();
+    _logger.i('✅ Visitor logs cleared');
+  }
 }
