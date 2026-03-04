@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:line_awesome_flutter/line_awesome_flutter.dart';
 import '../../app/controllers/home_controller.dart';
+import '../../app/routes/app_routes.dart';
 import '../../app/theme/app_colors.dart';
 
 /// App version displayed on Profile. Keep in sync with pubspec.yaml version.
@@ -22,7 +23,10 @@ class ProfilePage extends StatelessWidget {
             // Top: profile, name, role, logout
             Expanded(
               child: SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 24,
+                  vertical: 32,
+                ),
                 child: Column(
                   children: [
                     // Profile icon (green outline + person silhouette)
@@ -64,40 +68,97 @@ class ProfilePage extends StatelessWidget {
                         color: AppColors.subTitle,
                       ),
                     ),
-                    const SizedBox(height: 32),
-                    // Logout button (red, narrower width)
+                    const SizedBox(height: 48),
+                    // Note: offline vs online mode (kept short for 2 lines)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 4),
+                      child: Text(
+                        controller.isOfflineMode
+                            ? 'We are in offline mode. To sync students and upload reports, log in.'
+                            : 'We are in online mode. You can use student sync and upload reports.',
+                        style: const TextStyle(
+                          fontSize: 13,
+                          color: AppColors.subTitle,
+                          height: 1.35,
+                        ),
+                        textAlign: TextAlign.center,
+                        maxLines: 2,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    // Logout (when logged in) or Log in (when offline mode)
                     Center(
                       child: SizedBox(
                         width: MediaQuery.of(context).size.width * 0.75,
-                        child: ElevatedButton(
-                          onPressed: controller.logout,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFFFF6B6B),
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(vertical: 14),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                            elevation: 0,
-                          ),
-                          child: const Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(LineAwesomeIcons.sign_out_alt_solid, size: 20),
-                              SizedBox(width: 8),
-                              Text(
-                                'Logout',
-                                style: TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.bold,
+                        child: controller.isOfflineMode
+                            ? ElevatedButton(
+                                onPressed: () =>
+                                    Get.offAllNamed(AppRoutes.LOGIN),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: AppColors.primary,
+                                  foregroundColor: Colors.white,
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 14,
+                                  ),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                  elevation: 0,
+                                ),
+                                child: Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(
+                                      LineAwesomeIcons.sign_in_alt_solid,
+                                      size: 20,
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Text(
+                                      'Log in',
+                                      style: TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              )
+                            : ElevatedButton(
+                                onPressed: controller.logout,
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: const Color(0xFFFF6B6B),
+                                  foregroundColor: Colors.white,
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 14,
+                                  ),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                  elevation: 0,
+                                ),
+                                child: Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(
+                                      LineAwesomeIcons.sign_out_alt_solid,
+                                      size: 20,
+                                    ),
+                                    const SizedBox(width: 8),
+                                    const Text(
+                                      'Logout',
+                                      style: TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ],
                                 ),
                               ),
-                            ],
-                          ),
-                        ),
                       ),
                     ),
+                    const SizedBox(height: 40),
                   ],
                 ),
               ),
@@ -137,7 +198,10 @@ class ProfilePage extends StatelessWidget {
                   const SizedBox(height: 4),
                   Text(
                     'Version: $kAppVersion',
-                    style: const TextStyle(fontSize: 12, color: AppColors.subTitle),
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: AppColors.subTitle,
+                    ),
                     textAlign: TextAlign.center,
                   ),
                 ],

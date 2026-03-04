@@ -93,7 +93,7 @@ class VisitorPage extends StatelessWidget {
                     icon: const SvgIcon(
                       AppSvgIcons.trash,
                       size: 24,
-                      color: AppColors.primary,
+                      color: AppColors.negative,
                     ),
                     tooltip: 'Clear logs',
                   ),
